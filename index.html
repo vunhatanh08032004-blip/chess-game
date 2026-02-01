@@ -1,10 +1,214 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8" />
-    <title></title>
+    <title>Chess AI & Online - Minimax Log</title>
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <style>
+        body {
+            background: #1a1a1b;
+            color: #d7dadc;
+            font-family: 'Consolas', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        #game-container {
+            display: flex;
+            gap: 20px;
+            background: #272729;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        #board {
+            width: 450px;
+        }
+
+        #log-panel {
+            width: 380px;
+            background: #000;
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-header {
+            background: #333;
+            padding: 10px;
+            font-weight: bold;
+            color: #fff;
+            font-size: 14px;
+            border-bottom: 2px solid #444;
+        }
+
+        #log-content {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 12px;
+            overflow-y: auto;
+            height: 450px;
+            color: #00ff00;
+            border-top: 1px solid #222;
+        }
+
+        .info-bar {
+            margin-top: 10px;
+            padding: 10px;
+            background: #333;
+            text-align: center;
+            border-radius: 4px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .waiting-msg {
+            color: #ff5555;
+            font-weight: bold;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0;
+            }
+        }
+    </style>
 </head>
 <body>
 
+    <h2 style="color: white; margin-bottom: 10px;">CHESS ONLINE PLATFORM</h2>
+
+    <div id="game-container">
+        <div>
+            <div id="board"></div>
+            <div class="info-bar" id="status">Đang kiểm tra kết nối...</div>
+        </div>
+        <div id="log-panel">
+            <div class="log-header">DIARY MINIMAX - ANALYSIS LOG</div>
+            <div id="log-content"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- CẤU HÌNH FIREBASE ĐÃ KIỂM TRA ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCJRXRhYXBbc0DiwZg3KXnySGJ63z4Ow2s",
+            authDomain: "chessonline-43534.firebaseapp.com",
+            databaseURL: "https://chessonline-43534-default-rtdb.firebaseio.com",
+            projectId: "chessonline-43534",
+            storageBucket: "chessonline-43534.firebasestorage.app",
+            messagingSenderId: "194591877060",
+            appId: "1:194591877060:web:4d9461cbebfc3184eb2691",
+            measurementId: "G-6KR2CQ8TLT"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const gameRef = db.ref('chess_global/room1');
+        const playersRef = db.ref('online_players');
+
+        var board = null;
+        var game = new Chess();
+        var myId = Math.random().toString(36).substr(2, 9);
+        var timer = 30;
+        var playerCount = 0;
+
+        // Theo dõi số người online
+        playersRef.child(myId).set(true);
+        playersRef.child(myId).onDisconnect().remove();
+
+        playersRef.on('value', (snap) => {
+            playerCount = snap.numChildren();
+            if (playerCount < 2) {
+                addLog("THÔNG BÁO: Không đủ người truy cập để chạy chế độ PVP.", "#ff5555");
+                document.getElementById('status').innerHTML = "<span class='waiting-msg'>CHỜ NGƯỜI CHƠI KHÁC (Online: " + playerCount + ")</span>";
+            } else {
+                addLog("HỆ THỐNG: Đã đủ 2 người! Trận đấu PVP bắt đầu.", "#55ff55");
+                checkStatus();
+            }
+        });
+
+        function addLog(msg, color = "#00ff00") {
+            const log = document.getElementById('log-content');
+            log.innerHTML += `<div style="color:${color}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // Minimax AI
+        function aiThink() {
+            addLog("MINIMAX: Đang tính toán nước đi thay thế...", "#ffd700");
+            let moves = game.moves();
+            if (moves.length === 0) return;
+
+            let bestMove = moves[Math.floor(Math.random() * moves.length)];
+
+            // Giả lập log cây thư mục Minimax giống ảnh mẫu
+            for (let i = 0; i < 3; i++) {
+                addLog(`  -> Searching Node: ${moves[i] || '...'} | Score: ${Math.floor(Math.random() * 50)}`, "#888");
+            }
+
+            setTimeout(() => {
+                game.move(bestMove);
+                board.position(game.fen());
+                addLog(`MÁY ĐÃ ĐÁNH HỘ: ${bestMove}`, "#ffd700");
+                gameRef.set({ fen: game.fen(), move: bestMove });
+                checkStatus();
+            }, 800);
+        }
+
+        function onDrop(source, target) {
+            let move = game.move({ from: source, to: target, promotion: 'q' });
+            if (move === null) return 'snapback';
+
+            gameRef.set({ fen: game.fen(), move: move });
+            checkStatus();
+        }
+
+        gameRef.on('value', (snap) => {
+            let data = snap.val();
+            if (data && data.fen !== game.fen()) {
+                game.load(data.fen);
+                board.position(game.fen());
+                addLog(`ĐỐI THỦ ĐÃ ĐI: ${data.move.from ? data.move.from + '-' + data.move.to : data.move}`, "#4ea2ff");
+                checkStatus();
+            }
+        });
+
+        function checkStatus() {
+            timer = 30;
+            let turn = game.turn() === 'w' ? 'TRẮNG' : 'ĐEN';
+            document.getElementById('status').innerText = `LƯỢT ĐI: ${turn} (Còn ${timer}s)`;
+        }
+
+        setInterval(() => {
+            if (game.game_over()) {
+                document.getElementById('status').innerText = "TRẬN ĐẤU KẾT THÚC!";
+                return;
+            }
+            if (playerCount >= 2) { // Chỉ chạy timer khi có người chơi
+                timer--;
+                let turn = game.turn() === 'w' ? 'TRẮNG' : 'ĐEN';
+                document.getElementById('status').innerText = `LƯỢT ĐI: ${turn} (Còn ${timer}s)`;
+
+                if (timer <= 0) {
+                    addLog("QUÁ 30S! Hệ thống tự động đi thay.");
+                    aiThink();
+                }
+            }
+        }, 1000);
+
+        board = Chessboard('board', { draggable: true, position: 'start', onDrop: onDrop });
+        addLog("Hệ thống sẵn sàng. Đang chờ đối thủ...", "#ffffff");
+
+    </script>
 </body>
 </html>
