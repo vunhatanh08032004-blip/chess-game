@@ -1,48 +1,223 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-    <title>Chess Master PVP - Realtime</title>
+    <meta charset="UTF-8">
+    <title>Chess Master - Pro Edition</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <style>
-        body { background: #1a1a1a; color: white; font-family: 'Segoe UI', Arial; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        
-        /* Hiệu ứng xám khi dừng/chờ */
-        #game-view-container { transition: all 0.4s; filter: grayscale(100%); opacity: 0.3; pointer-events: none; }
-        .is-active { filter: grayscale(0%) !important; opacity: 1 !important; pointer-events: auto !important; }
+        body {
+            background: #1a1a1a;
+            color: white;
+            font-family: 'Segoe UI', Arial;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
 
-        #main-layout { display: flex; gap: 20px; background: #262626; padding: 20px; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        #game-outer { position: relative; width: 450px; height: 450px; border: 2px solid #333; }
-        #board { width: 100%; height: 100%; }
-        
-        #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); z-index: 100; cursor: pointer; }
-        .click-cell { width: 100%; height: 100%; box-sizing: border-box; border: 3px solid transparent; }
-        .border-selected { border: 4px solid #ffff00 !important; z-index: 110; } 
-        .border-hint { border: 4px solid #00ff00 !important; z-index: 110; }     
-        
-        #logs-container { width: 250px; display: flex; flex-direction: column; }
-        #logs { flex-grow: 1; background: #000; color: #0f0; padding: 10px; font-family: monospace; height: 400px; overflow-y: auto; border: 1px solid #444; font-size: 12px; }
-        
-        .info-bar { margin: 10px 0; padding: 10px; background: #111; text-align: center; color: #00ffcc; font-weight: bold; border-radius: 4px; }
-        #timer-span { color: #ff4d4d; margin-left: 10px; display: none; }
-        
-        /* Modal & Nút X */
-        #modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:2000; }
-        .system-modal { display: none; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); width: 420px; background: #f0f0f0; border: 2px solid #0055ea; z-index: 2001; color: #000; }
-        .modal-header { background: #0055ea; color: white; padding: 10px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
-        .close-x { cursor: pointer; font-size: 24px; line-height: 1; font-weight: bold; }
-        .modal-body { padding: 30px; display: flex; flex-direction: column; align-items: center; text-align: center; }
-        .modal-footer { padding: 15px; background: #eee; display: flex; justify-content: center; gap: 10px; border-top: 1px solid #ccc; }
-        .modal-btn { padding: 10px 20px; cursor: pointer; font-weight: bold; min-width: 100px; }
+        .top-controls {
+            margin-bottom: 20px;
+            background: #333;
+            padding: 10px;
+            border-radius: 8px;
+        }
 
-        .top-controls { margin-bottom: 20px; }
-        .mode-btn { padding: 12px 25px; cursor: pointer; font-weight: bold; background: #444; color: #ccc; border: none; margin: 0 5px; }
-        .mode-btn.active { background: #007acc; color: white; }
-        .mode-btn.disabled { filter: grayscale(100%); opacity: 0.3; pointer-events: none; }
+        .mode-btn {
+            padding: 12px 25px;
+            cursor: pointer;
+            font-weight: bold;
+            background: #444;
+            color: #ccc;
+            border: none;
+            margin: 0 5px;
+            border-radius: 4px;
+        }
+
+            .mode-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+        .btn-active {
+            background: #007acc !important;
+            color: white !important;
+        }
+
+        #game-view-container {
+            transition: 0.3s;
+            filter: grayscale(1);
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .is-active {
+            filter: grayscale(0) !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+
+        #main-layout {
+            display: flex;
+            gap: 20px;
+            background: #262626;
+            padding: 20px;
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        #game-outer {
+            position: relative;
+            width: 450px;
+            height: 450px;
+        }
+
+        #board {
+            width: 100%;
+            height: 100%;
+        }
+
+        #click-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            z-index: 1000;
+        }
+
+        .click-cell {
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            box-sizing: border-box;
+        }
+
+        .border-selected {
+            background: rgba(255, 255, 0, 0.4);
+            border: 2px solid yellow !important;
+        }
+
+        .border-hint {
+            background: rgba(0, 255, 0, 0.2);
+            border: 2px solid lime !important;
+        }
+
+        .in-check {
+            background: rgba(255, 0, 0, 0.7) !important;
+            border: 3px solid red !important;
+            animation: blink 0.6s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .info-bar {
+            margin: 10px 0;
+            padding: 10px;
+            background: #111;
+            text-align: center;
+            color: #00ffcc;
+            font-weight: bold;
+            border-radius: 4px;
+        }
+
+        #logs {
+            width: 280px;
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            font-family: monospace;
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #444;
+            font-size: 13px;
+            border-radius: 4px;
+        }
+
+        /* Modal System */
+        .system-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 350px;
+            background: #fff;
+            color: #000;
+            z-index: 3000;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .modal-header {
+            background: #0055ea;
+            color: #fff;
+            padding: 12px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-x {
+            cursor: pointer;
+            font-size: 20px;
+            line-height: 1;
+            padding: 0 5px;
+        }
+
+        .modal-body {
+            padding: 30px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .modal-footer {
+            padding: 10px;
+            background: #eee;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            padding: 8px 20px;
+            cursor: pointer;
+            font-weight: bold;
+            border: none;
+            background: #0055ea;
+            color: white;
+            border-radius: 4px;
+        }
+
+        #modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 2999;
+        }
     </style>
 </head>
 <body>
 
-    <div class="top-controls" id="nav">
+    <div class="top-controls">
         <button class="mode-btn" id="btn-pve" onclick="requestGame('PVE')">NGƯỜI VS MÁY</button>
         <button class="mode-btn" id="btn-pvp" onclick="requestGame('PVP')">NGƯỜI VS NGƯỜI</button>
     </div>
@@ -50,20 +225,14 @@
     <div id="game-view-container">
         <div id="main-layout">
             <div>
-                <div id="game-outer">
-                    <div id="board"></div>
-                    <div id="click-overlay"></div>
-                </div>
+                <div id="game-outer"><div id="board"></div><div id="click-overlay"></div></div>
                 <div class="info-bar">
-                    <span id="turn-display">LƯỢT ĐI: TRẮNG</span>
-                    <span id="timer-span">30s</span>
+                    <span id="turn-display">LƯỢT: TRẮNG</span> | <span id="timer-span">30s</span>
                 </div>
             </div>
             <div id="side-panel">
-                <div id="logs-container">
-                    <div id="logs">> Đang kết nối Firebase...</div>
-                    <button onclick="confirmExit()" style="margin-top:10px; background:#e74c3c; color:white; border:none; padding:12px; cursor:pointer; font-weight:bold; width:100%;">THOÁT TRẬN</button>
-                </div>
+                <div id="logs"></div>
+                <button onclick="exitGame()" style="margin-top:10px; background:#e74c3c; color:white; border:none; padding:12px; cursor:pointer; font-weight:bold; width:100%; border-radius:4px;">THOÁT</button>
             </div>
         </div>
     </div>
@@ -71,12 +240,10 @@
     <div id="modal-overlay"></div>
     <div id="custom-modal" class="system-modal">
         <div class="modal-header">
-            <span>THÔNG BÁO HỆ THỐNG</span>
-            <span class="close-x" onclick="closeSystemModal()">×</span>
+            <span id="modal-title">HỆ THỐNG</span>
+            <span class="close-x" onclick="closeSystemModal()">&times;</span>
         </div>
-        <div class="modal-body">
-            <div id="modal-msg" style="font-weight:bold; font-size:16px;"></div>
-        </div>
+        <div class="modal-body" id="modal-msg"></div>
         <div class="modal-footer" id="modal-btns"></div>
     </div>
 
@@ -87,7 +254,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
 
     <script>
-        // Cấu hình Firebase của bạn
         const firebaseConfig = {
             apiKey: "AIzaSyCJRXRhYXBbc0DiwZg3KXnySGJ63z4Ow2s",
             authDomain: "chessonline-43534.firebaseapp.com",
@@ -99,157 +265,246 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        const myId = "UID-" + Math.random().toString(36).substr(2, 5);
 
         var board = null, game = new Chess(), selectedSq = null;
         var mode = '', myColor = 'w', timer = 30, timerInt = null, isPaused = false;
-        var roomId = "global_match"; 
+        var matchmakingTimer = null;
 
-        function triggerModal(msg, btns) {
+        function addLog(msg) {
+            $('#logs').append(`<div>> ${msg}</div>`);
+            $('#logs').scrollTop($('#logs')[0].scrollHeight);
+        }
+
+        function triggerModal(msg, btns, title = "HỆ THỐNG") {
             isPaused = true;
+            $('#modal-title').text(title);
             $('#modal-msg').html(msg);
-            $('#modal-btns').html(btns.map(b => `<button class="modal-btn" onclick="${b.fn}">${b.txt}</button>`).join(''));
+            $('#modal-btns').html(btns.map(x => `<button class="modal-btn" onclick="${x.fn}">${x.txt}</button>`).join(''));
             $('#modal-overlay, #custom-modal').show();
-            $('#game-view-container').css('filter', 'grayscale(100%)').css('opacity', '0.3');
         }
 
         function closeSystemModal() {
             $('#modal-overlay, #custom-modal').hide();
-            if (mode) { 
-                isPaused = false; 
-                $('#game-view-container').css('filter', 'grayscale(0%)').css('opacity', '1');
-                startCountdown(); 
+            if (matchmakingTimer) clearInterval(matchmakingTimer);
+            if (mode) {
+                isPaused = false;
+                $('#game-view-container').addClass('is-active');
+                startCountdown();
+            }
+        }
+
+        function requestGame(m) {
+            $('.mode-btn').prop('disabled', true);
+            $(`#btn-${m.toLowerCase()}`).addClass('btn-active');
+
+            if (m === 'PVP') {
+                let secondsLeft = 60;
+                triggerModal(`Đang tìm đối thủ... <br><span style="font-size:2em; color:#0055ea;" id="mm-countdown">60</span>`, [], "GHÉP TRẬN");
+
+                matchmakingTimer = setInterval(() => {
+                    secondsLeft--;
+                    $('#mm-countdown').text(secondsLeft);
+                    if (secondsLeft <= 0) {
+                        clearInterval(matchmakingTimer);
+                        triggerModal("Không tìm thấy đối thủ!", [{ txt: "Thoát", fn: "exitGame()" }]);
+                    }
+                }, 1000);
+
+                const lobbyRef = db.ref('matchmaking');
+                const myStatusRef = lobbyRef.child(myId);
+                myStatusRef.set({ id: myId, ts: Date.now() });
+                const hb = setInterval(() => myStatusRef.update({ ts: Date.now() }), 2000);
+                myStatusRef.onDisconnect().remove();
+
+                lobbyRef.once('value', (snap) => {
+                    let found = false;
+                    snap.forEach((child) => {
+                        const peer = child.val();
+                        if (peer.id !== myId && (Date.now() - peer.ts < 5000)) {
+                            found = true;
+                            clearInterval(hb); clearInterval(matchmakingTimer);
+                            myColor = 'b';
+                            db.ref('rooms/' + peer.id).set({ fen: 'start', p1: peer.id, p2: myId });
+                            triggerModal("Ghép trận thành công, đang tiến vào trận đấu", [{ txt: "Bắt đầu", fn: "startGamePVP('" + peer.id + "')" }]);
+                        }
+                    });
+                    if (!found) {
+                        db.ref('rooms/' + myId).on('value', s => {
+                            if (s.exists() && s.val().p2) {
+                                clearInterval(hb); clearInterval(matchmakingTimer);
+                                db.ref('rooms/' + myId).off();
+                                myColor = 'w';
+                                triggerModal("Ghép trận thành công, đang tiến vào trận đấu", [{ txt: "Bắt đầu", fn: "startGamePVP('" + myId + "')" }]);
+                            }
+                        });
+                    }
+                });
+            } else {
+                // Chế độ PVE
+                triggerModal("Bắt đầu chế độ người với máy", [{ txt: "Bắt đầu", fn: "initGame('PVE')" }]);
+            }
+        }
+
+        function startGamePVP(roomId) {
+            window.currentRoom = roomId;
+            db.ref('rooms/' + roomId).on('value', snap => {
+                const data = snap.val();
+                if (data && data.fen !== game.fen()) {
+                    game.load(data.fen);
+                    board.position(data.fen);
+                    refreshStatus();
+                }
+            });
+            initGame('PVP');
+        }
+
+        // --- AI MINIMAX (Tỉ lệ thắng người chơi 10%) ---
+        const pieceValues = { p: 10, r: 50, n: 30, b: 30, q: 90, k: 900 };
+        function evaluateBoard(g) {
+            let total = 0;
+            g.board().forEach(row => row.forEach(p => {
+                if (p) total += (p.color === 'w' ? 1 : -1) * pieceValues[p.type];
+            }));
+            return total;
+        }
+
+        function minimax(g, depth, isMax, alpha, beta) {
+            if (depth === 0) return -evaluateBoard(g);
+            let moves = g.moves();
+            if (isMax) {
+                let best = -9999;
+                for (let m of moves) {
+                    g.move(m);
+                    best = Math.max(best, minimax(g, depth - 1, false, alpha, beta));
+                    g.undo();
+                    alpha = Math.max(alpha, best);
+                    if (beta <= alpha) break;
+                }
+                return best;
+            } else {
+                let best = 9999;
+                for (let m of moves) {
+                    g.move(m);
+                    best = Math.min(best, minimax(g, depth - 1, true, alpha, beta));
+                    g.undo();
+                    beta = Math.min(beta, best);
+                    if (beta <= alpha) break;
+                }
+                return best;
+            }
+        }
+
+        function aiMove() {
+            if (game.game_over()) return;
+            let moves = game.moves();
+            let bestMove = null;
+            let bestVal = -9999;
+            if (Math.random() < 0.9) {
+                for (let m of moves) {
+                    game.move(m);
+                    let val = minimax(game, 3, false, -10000, 10000);
+                    game.undo();
+                    if (val > bestVal) { bestVal = val; bestMove = m; }
+                }
+            } else { bestMove = moves[Math.floor(Math.random() * moves.length)]; }
+            executeMove(bestMove);
+        }
+
+        function executeMove(move) {
+            const m = game.move(move);
+            board.position(game.fen());
+            addLog(`${game.turn() !== myColor ? 'Bạn' : 'Máy'}: ${m.from} -> ${m.to}`);
+            if (mode === 'PVP') db.ref('rooms/' + window.currentRoom).update({ fen: game.fen() });
+            refreshStatus();
+            if (mode === 'PVE' && game.turn() !== myColor) setTimeout(aiMove, 1000);
+        }
+
+        function refreshStatus() {
+            $('.click-cell').removeClass('in-check');
+            $('#turn-display').text("LƯỢT: " + (game.turn() === 'w' ? "TRẮNG" : "ĐEN"));
+            if (game.in_check()) $(`#sq-${findKing(game.turn())}`).addClass('in-check');
+            if (game.game_over()) {
+                clearInterval(timerInt);
+                let msg = game.in_checkmate() ? (game.turn() === 'w' ? "ĐEN THẮNG!" : "TRẮNG THẮNG!") : "HÒA CỜ!";
+                triggerModal(msg, [{ txt: "Thoát", fn: "exitGame()" }], "KẾT THÚC");
+            } else { startCountdown(); }
+        }
+
+        function findKing(c) {
+            for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) {
+                let s = String.fromCharCode(97 + j) + (i + 1);
+                let p = game.get(s);
+                if (p && p.type === 'k' && p.color === c) return s;
             }
         }
 
         function startCountdown() {
-            clearInterval(timerInt);
-            timer = 30;
+            clearInterval(timerInt); timer = 30;
             $('#timer-span').show().text(timer + "s");
             timerInt = setInterval(() => {
                 if (!isPaused) {
-                    timer--;
-                    $('#timer-span').text(timer + "s");
-                    if (timer <= 0) { 
-                        clearInterval(timerInt);
-                        if(mode === 'PVE') aiMove(true);
+                    timer--; $('#timer-span').text(timer + "s");
+                    if (timer <= 0) {
+                        if (game.turn() === myColor) { let m = game.moves()[0]; if (m) executeMove(m); }
                     }
                 }
             }, 1000);
         }
 
-        function requestGame(m) {
-            $('.mode-btn').addClass('disabled');
-            $(`#btn-${m.toLowerCase()}`).removeClass('disabled').addClass('active');
-
-            if (m === 'PVP') {
-                triggerModal("Đang chờ người chơi khác chọn PVP...", []);
-                // Logic PVP: Kiểm tra phòng
-                db.ref('matchmaking').once('value', snapshot => {
-                    let val = snapshot.val();
-                    if (!val) {
-                        myColor = 'w';
-                        db.ref('matchmaking').set({ p1: true });
-                        db.ref('matchmaking').on('value', s => {
-                            if (s.val().p2) {
-                                db.ref('matchmaking').off();
-                                triggerModal("Đã có đối thủ!", [{txt: "Vào trận", fn: "initGame('PVP')"}]);
-                            }
-                        });
-                    } else {
-                        myColor = 'b';
-                        db.ref('matchmaking').update({ p2: true });
-                        triggerModal("Đối thủ đã sẵn sàng!", [{txt: "Vào trận", fn: "initGame('PVP')"}]);
-                    }
-                });
-            } else {
-                triggerModal("Bạn đấu với Máy AI (1-10s)", [{txt: "Bắt đầu", fn: "initGame('PVE')"}]);
-            }
-        }
-
-        function initGame(m) {
-            mode = m;
-            closeSystemModal();
-            game.reset();
-            
-            if (m === 'PVE') myColor = Math.random() > 0.5 ? 'w' : 'b';
-            
-            board.orientation(myColor === 'w' ? 'white' : 'black');
-            board.start();
-            drawClickGrid();
-            
-            if (m === 'PVP') {
-                db.ref('game').set({ fen: 'start' });
-                db.ref('game').on('value', snap => {
-                    let f = snap.val().fen;
-                    if (f !== game.fen()) {
-                        game.load(f);
-                        board.position(f);
-                        refreshStatus();
-                    }
-                });
-            }
-            
-            refreshStatus();
-            if (myColor === 'b' && m === 'PVE') aiMove();
-        }
-
-        function aiMove(instant = false) {
-            if (game.game_over()) return;
-            let delay = instant ? 500 : (Math.floor(Math.random() * 9000) + 1000);
-            setTimeout(() => {
-                if (isPaused) return;
-                let moves = game.moves();
-                game.move(moves[Math.floor(Math.random() * moves.length)]);
-                board.position(game.fen());
-                refreshStatus();
-            }, delay);
-        }
-
-        $(document).on('click', '.click-cell', function() {
+        $(document).on('click', '.click-cell', function () {
             if (game.turn() !== myColor || isPaused) return;
-            let sq = $(this).data('sq');
+            const sq = $(this).attr('data-sq');
             if (selectedSq) {
-                let m = game.move({ from: selectedSq, to: sq, promotion: 'q' });
-                if (m) {
-                    board.position(game.fen());
-                    if (mode === 'PVP') db.ref('game').update({ fen: game.fen() });
-                    selectedSq = null; $('.click-cell').removeClass('border-selected border-hint');
-                    refreshStatus();
-                    if (mode === 'PVE') aiMove();
-                } else { highlight(sq); }
-            } else { highlight(sq); }
+                const move = game.move({ from: selectedSq, to: sq, promotion: 'q' });
+                if (move) { game.undo(); executeMove(move); selectedSq = null; $('.click-cell').removeClass('border-selected border-hint'); }
+                else { selectPiece(sq); }
+            } else { selectPiece(sq); }
         });
 
-        function highlight(sq) {
-            let p = game.get(sq);
+        function selectPiece(sq) {
+            const p = game.get(sq);
             if (p && p.color === myColor && p.color === game.turn()) {
                 selectedSq = sq;
                 $('.click-cell').removeClass('border-selected border-hint');
                 $(`#sq-${sq}`).addClass('border-selected');
-                game.moves({square: sq, verbose: true}).forEach(m => $(`#sq-${m.to}`).addClass('border-hint'));
+                game.moves({ square: sq, verbose: true }).forEach(m => $(`#sq-${m.to}`).addClass('border-hint'));
             }
-        }
-
-        function refreshStatus() {
-            let t = game.turn() === 'w' ? "TRẮNG" : "ĐEN";
-            $('#turn-display').text("LƯỢT ĐI: " + t);
-            if (game.game_over()) triggerModal("KẾT THÚC!", [{txt: "Làm mới", fn: "location.reload()"}]);
-            else startCountdown();
         }
 
         function drawClickGrid() {
             $('#click-overlay').empty();
-            let squares = [];
-            for (let i = 8; i >= 1; i--) for (let j = 0; j < 8; j++) squares.push(String.fromCharCode(97 + j) + i);
-            if (myColor === 'b') squares.reverse();
-            squares.forEach(s => $('#click-overlay').append(`<div class="click-cell" id="sq-${s}" data-sq="${s}"></div>`));
+            let sqs = [];
+            for (let i = 8; i >= 1; i--) for (let j = 0; j < 8; j++) sqs.push(String.fromCharCode(97 + j) + i);
+            if (myColor === 'b') sqs.reverse();
+            sqs.forEach(s => $('#click-overlay').append(`<div class="click-cell" id="sq-${s}" data-sq="${s}"></div>`));
         }
 
-        function addLog(m) { $('#logs').append(`<div>> ${m}</div>`).scrollTop($('#logs')[0].scrollHeight); }
-        function confirmExit() { triggerModal("Thoát trận?", [{txt: "Có", fn: "location.reload()"}, {txt: "Không", fn: "closeSystemModal()"}]); }
+        function initGame(m) {
+            mode = m;
+            game.reset();
+            if (m === 'PVE') {
+                myColor = Math.random() > 0.5 ? 'w' : 'b';
+            }
+            board.orientation(myColor === 'w' ? 'white' : 'black');
+            board.start();
+            drawClickGrid();
+
+            // HIỆN THÔNG BÁO KHI BẮT ĐẦU HIỂN THỊ BÀN CỜ
+            addLog("Trò chơi bắt đầu");
+            triggerModal("Trò chơi bắt đầu", [{ txt: "Chơi thôi!", fn: "closeSystemModal()" }]);
+
+            refreshStatus();
+            if (myColor === 'b' && m === 'PVE') setTimeout(aiMove, 1500); // Đợi chút sau thông báo mới đi
+        }
+
+        function exitGame() {
+            db.ref('matchmaking/' + myId).remove();
+            if (window.currentRoom) db.ref('rooms/' + window.currentRoom).remove();
+            location.reload();
+        }
 
         board = Chessboard('board', { position: 'start', draggable: false, pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png' });
-        addLog("Firebase đã sẵn sàng.");
     </script>
 </body>
 </html>
