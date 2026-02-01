@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Chess Online - 2 Game Modes</title>
+    <title>Chess Pro - King Capture Mode</title>
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
@@ -11,65 +11,77 @@
 
     <style>
         body {
-            background: #1a1a1b;
-            color: #d7dadc;
-            font-family: 'Consolas', monospace;
+            background: #1a1a1a;
+            color: #eee;
+            font-family: 'Segoe UI', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px;
+            padding-top: 20px;
         }
 
         #game-container {
             display: flex;
             gap: 20px;
-            background: #272729;
+            background: #2a2a2a;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         }
 
         #board {
             width: 450px;
         }
 
-        #log-panel {
-            width: 400px;
-            background: #1e1e1e;
-            border: 1px solid #333;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .log-header {
+        .info-bar {
+            margin: 15px 0;
+            padding: 12px;
             background: #333;
-            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            color: #ffd700;
             font-weight: bold;
-            color: #fff;
-            font-size: 14px;
         }
 
-        #log-content {
-            flex-grow: 1;
-            padding: 10px;
-            font-size: 12px;
-            overflow-y: auto;
-            height: 450px;
-            color: #00ff00;
-            background: #000;
+        /* Hiệu ứng ô cờ */
+        .highlight-selected {
+            background: rgba(255, 255, 0, 0.6) !important;
         }
 
-        .mode-selector {
+        .highlight-hint {
+            background: rgba(0, 255, 100, 0.4) !important;
+        }
+
+        .highlight-check {
+            background: rgba(255, 0, 0, 0.8) !important;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .controls {
             margin-bottom: 15px;
             display: flex;
             gap: 10px;
         }
 
         button {
-            padding: 10px 20px;
+            padding: 12px 25px;
             cursor: pointer;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             font-weight: bold;
             transition: 0.3s;
         }
@@ -77,156 +89,238 @@
         .btn-mode {
             background: #444;
             color: white;
+            border: 2px solid transparent;
         }
 
-        .active {
-            background: #007acc !important;
-        }
+            .btn-mode.active {
+                background: #007acc;
+                border-color: #fff;
+            }
 
-        .info-bar {
+        .btn-exit {
+            background: #e74c3c;
+            color: white;
+            width: 100%;
             margin-top: 10px;
-            padding: 10px;
-            background: #333;
+        }
+
+        /* Modal */
+        #modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 100;
+        }
+
+        #custom-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fff;
+            color: #333;
+            padding: 40px;
+            border-radius: 15px;
             text-align: center;
-            border-radius: 4px;
-            color: #ffd700;
+            z-index: 101;
+            border: 5px solid #ffd700;
         }
     </style>
 </head>
 <body>
 
-    <h2 style="color: white;">CHESS ONLINE PLATFORM</h2>
+    <div id="modal-overlay"></div>
+    <div id="custom-modal">
+        <h1 id="modal-title" style="color:#c0392b">CHIẾN THẮNG!</h1>
+        <p id="modal-msg" style="font-size: 1.3em; margin: 20px 0;"></p>
+        <button onclick="location.reload()" style="background:#27ae60; color:white; padding:15px 40px; font-size:1.1em;">CHỌN LẠI CHẾ ĐỘ CHƠI</button>
+    </div>
 
-    <div class="mode-selector">
-        <button id="pve-btn" class="btn-mode active" onclick="setMode('PVE')">CHẾ ĐỘ: NGƯỜI VS MÁY</button>
-        <button id="pvp-btn" class="btn-mode" onclick="setMode('PVP')">CHẾ ĐỘ: NGƯỜI VS NGƯỜI</button>
+    <h2 id="header-title">CHESS ONLINE: KING HUNTER</h2>
+
+    <div class="controls" id="mode-selection">
+        <button id="pve-btn" class="btn-mode active" onclick="setMode('PVE')">NGƯỜI VS MÁY</button>
+        <button id="pvp-btn" class="btn-mode" onclick="setMode('PVP')">NGƯỜI VS NGƯỜI</button>
     </div>
 
     <div id="game-container">
         <div>
             <div id="board"></div>
-            <div class="info-bar" id="status">Đang khởi tạo...</div>
+            <div class="info-bar" id="status">Vui lòng chọn chế độ...</div>
+            <button class="btn-exit" onclick="forceExit()">THOÁT & CHỌN LẠI</button>
         </div>
-        <div id="log-panel">
-            <div class="log-header">DIARY MINIMAX - ANALYSIS LOG</div>
-            <div id="log-content"></div>
+        <div style="width: 320px; background:#000; color:#0f0; padding:15px; font-family:monospace; height:450px; overflow-y:auto; border-radius:8px;" id="logs">
+            <div>[HỆ THỐNG] Khởi động hoàn tất.</div>
         </div>
     </div>
 
     <script>
-        // --- CẤU HÌNH FIREBASE CỦA BẠN ---
         const firebaseConfig = {
             apiKey: "AIzaSyCJRXRhYXBbc0DiwZg3KXnySGJ63z4Ow2s",
             authDomain: "chessonline-43534.firebaseapp.com",
             databaseURL: "https://chessonline-43534-default-rtdb.firebaseio.com",
-            projectId: "chessonline-43534",
-            storageBucket: "chessonline-43534.firebasestorage.app",
-            messagingSenderId: "194591877060",
-            appId: "1:194591877060:web:4d9461cbebfc3184eb2691"
+            projectId: "chessonline-43534"
         };
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         const gameRef = db.ref('chess_global/room1');
-        const playersRef = db.ref('online_players');
 
-        var board = null;
-        var game = new Chess();
-        var currentMode = 'PVE'; // Mặc định
-        var myId = Math.random().toString(36).substr(2, 9);
-        var timer = 30;
-        var playerCount = 0;
+        let board = null;
+        let game = new Chess();
+        let currentMode = 'PVE';
+        let selectedSquare = null;
+        let gameOver = false;
 
-        // Theo dõi số người online
-        playersRef.child(myId).set(true);
-        playersRef.child(myId).onDisconnect().remove();
-        playersRef.on('value', (snap) => { playerCount = snap.numChildren(); updateStatus(); });
-
-        function addLog(msg, color = "#00ff00") {
-            const log = document.getElementById('log-content');
-            log.innerHTML += `<div style="color:${color}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
-            log.scrollTop = log.scrollHeight;
+        function addLog(m) {
+            $('#logs').append(`<div>> ${m}</div>`);
+            $('#logs').scrollTop($('#logs')[0].scrollHeight);
         }
 
-        function setMode(mode) {
-            currentMode = mode;
-            document.getElementById('pve-btn').classList.toggle('active', mode === 'PVE');
-            document.getElementById('pvp-btn').classList.toggle('active', mode === 'PVP');
-            addLog(`HỆ THỐNG: Đã chuyển sang chế độ ${mode === 'PVE' ? 'NGƯỜI VS MÁY' : 'NGƯỜI VS NGƯỜI'}.`, "#fff");
-            updateStatus();
+        // --- CƠ CHẾ CLICK-TO-MOVE ---
+        function onSquareClick(square) {
+            if (gameOver) return;
+
+            if (selectedSquare) {
+                let move = game.move({ from: selectedSquare, to: square, promotion: 'q' });
+
+                if (move === null) {
+                    selectedSquare = square;
+                    highlightAvailableMoves(square);
+                } else {
+                    selectedSquare = null;
+                    $('.highlight-hint, .highlight-selected').removeClass('highlight-hint highlight-selected');
+                    board.position(game.fen());
+                    processMove(move);
+                }
+            } else {
+                selectedSquare = square;
+                highlightAvailableMoves(square);
+            }
         }
 
-        function aiThink() {
-            addLog("MINIMAX: Đang phân tích nước đi gốc...", "#ffd700");
-            let moves = game.moves();
-            if (moves.length === 0) return;
-
-            let bestMove = moves[Math.floor(Math.random() * moves.length)];
-            setTimeout(() => {
-                game.move(bestMove);
-                board.position(game.fen());
-                addLog(`→ MIN Move: ${bestMove} (Score Eval: ${Math.floor(Math.random() * 50)})`, "#aaa");
-                if (currentMode === 'PVP') gameRef.set({ fen: game.fen(), move: bestMove });
-                updateStatus();
-            }, 800);
+        function highlightAvailableMoves(square) {
+            $('.highlight-hint, .highlight-selected').removeClass('highlight-hint highlight-selected');
+            let moves = game.moves({ square: square, verbose: true });
+            if (moves.length > 0) {
+                $(`#board .square-${square}`).addClass('highlight-selected');
+                moves.forEach(m => $(`#board .square-${m.to}`).addClass('highlight-hint'));
+            }
         }
 
-        function onDrop(source, target) {
-            let move = game.move({ from: source, to: target, promotion: 'q' });
-            if (move === null) return 'snapback';
+        function processMove(move) {
+            updateUI();
+
+            // KIỂM TRA MẤT TƯỚNG (KING CAPTURED)
+            // Trong cờ vua chuẩn (chess.js), khi chiếu bí là game kết thúc.
+            // Ta giả lập việc "mất tướng" bằng cách kiểm tra checkmate.
+            if (game.in_checkmate()) {
+                gameOver = true;
+                let winnerText = "";
+                if (currentMode === 'PVE') {
+                    winnerText = game.turn() === 'w' ? "MÁY ĐÃ ĂN TƯỚNG CỦA BẠN!" : "BẠN ĐÃ ĂN TƯỚNG CỦA MÁY!";
+                } else {
+                    winnerText = game.turn() === 'w' ? "QUÂN ĐEN ĐÃ ĂN TƯỚNG!" : "QUÂN TRẮNG ĐÃ ĂN TƯỚNG!";
+                }
+                setTimeout(() => {
+                    $('#modal-msg').text(winnerText);
+                    $('#modal-overlay, #custom-modal').fadeIn();
+                }, 500);
+                return;
+            }
 
             if (currentMode === 'PVP') {
                 gameRef.set({ fen: game.fen(), move: move });
-            } else {
-                // Chế độ PVE: Người đi xong thì máy đi ngay
-                window.setTimeout(aiThink, 500);
+            } else if (game.turn() === 'b') {
+                setTimeout(aiMove, 600);
             }
-            updateStatus();
         }
 
-        gameRef.on('value', (snap) => {
+        function aiMove() {
+            let moves = game.moves();
+            if (moves.length === 0) return;
+            let move = moves[Math.floor(Math.random() * moves.length)];
+            game.move(move);
+            board.position(game.fen());
+            processMove(move);
+        }
+
+        function updateUI() {
+            let turn = game.turn() === 'w' ? "TRẮNG" : "ĐEN";
+            $('#status').text(`LƯỢT ĐI: ${turn}`);
+
+            // CHỈ HIỆN ĐỎ KHI NGƯỜI CHƠI BỊ CHIẾU
+            $('.highlight-check').removeClass('highlight-check');
+            if (game.in_check()) {
+                // Nếu là lượt của người (Trắng trong PVE) và đang bị chiếu
+                if (currentMode === 'PVE' && game.turn() === 'w') {
+                    let kingPos = findKing('w');
+                    $(`#board .square-${kingPos}`).addClass('highlight-check');
+                    addLog("CẢNH BÁO: Tướng của bạn đang bị chiếu!");
+                } else if (currentMode === 'PVP') {
+                    let kingPos = findKing(game.turn());
+                    $(`#board .square-${kingPos}`).addClass('highlight-check');
+                }
+            }
+        }
+
+        function findKing(color) {
+            let b = game.board();
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (b[i][j] && b[i][j].type === 'k' && b[i][j].color === color) {
+                        return String.fromCharCode(97 + j) + (8 - i);
+                    }
+                }
+            }
+        }
+
+        function setMode(m) {
+            currentMode = m;
+            $('.btn-mode').removeClass('active');
+            $(`#${m.toLowerCase()}-btn`).addClass('active');
+            addLog(`ĐÃ CHUYỂN: ${m}`);
+            resetBoardState();
+        }
+
+        function resetBoardState() {
+            game.reset();
+            board.position('start');
+            gameOver = false;
+            updateUI();
+        }
+
+        function forceExit() {
+            gameRef.remove(); // Xóa dữ liệu phòng nếu có
+            location.reload(); // Bắt buộc chọn lại từ đầu
+        }
+
+        // Firebase sync
+        gameRef.on('value', snap => {
             if (currentMode !== 'PVP') return;
             let data = snap.val();
             if (data && data.fen !== game.fen()) {
                 game.load(data.fen);
                 board.position(game.fen());
-                addLog(`ĐỐI THỦ ĐÃ ĐI: ${data.move.from || data.move}`, "#4ea2ff");
-                updateStatus();
+                updateUI();
             }
         });
-
-        function updateStatus() {
-            timer = 30;
-            let turn = game.turn() === 'w' ? 'TRẮNG' : 'ĐEN';
-            let statusText = `LƯỢT ĐI: ${turn} (${timer}s)`;
-
-            if (currentMode === 'PVP' && playerCount < 2) {
-                statusText = "KHÔNG ĐỦ NGƯỜI TRUY CẬP (Cần 2 người)";
-            }
-            document.getElementById('status').innerText = statusText;
-        }
-
-        setInterval(() => {
-            if (game.game_over()) return;
-            if (currentMode === 'PVP' && playerCount < 2) return;
-
-            timer--;
-            let turn = game.turn() === 'w' ? 'TRẮNG' : 'ĐEN';
-            document.getElementById('status').innerText = `LƯỢT ĐI: ${turn} (${timer}s)`;
-
-            if (timer <= 0) {
-                addLog("QUÁ 30S! Máy tự động thực hiện nước đi.", "#ff5555");
-                aiThink();
-            }
-        }, 1000);
 
         board = Chessboard('board', {
-            draggable: true,
             position: 'start',
-            onDrop: onDrop,
+            draggable: false, // Click to move only
             pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
         });
-        updateStatus();
+
+        $('#board').on('click', '.square-55d6', function () {
+            onSquareClick($(this).data('square'));
+        });
+
+        updateUI();
     </script>
 </body>
 </html>
