@@ -1,74 +1,89 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Chess Master - Circular Timer & Detailed Logs</title>
+    <title>Chess Master Pro - Hệ Thống Chấp Hành Luật</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <style>
-        body { background: #1a1a1a; color: white; font-family: 'Segoe UI', Arial; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        #main-container { display: flex; align-items: center; gap: 30px; background: #262626; padding: 30px; border-radius: 8px; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        body { background: #1a1a1a; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
         
-        /* Đồng hồ hình tròn bên trái */
-        #timer-container { position: relative; width: 120px; height: 120px; display: flex; justify-content: center; align-items: center; }
-        .circle-bg { fill: none; stroke: #444; stroke-width: 8; }
-        .circle-progress { fill: none; stroke: #00ffcc; stroke-width: 8; stroke-linecap: round; stroke-dasharray: 314; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear, stroke 0.3s; transform: rotate(-90deg); transform-origin: 50% 50%; }
-        #timer-text { position: absolute; font-size: 28px; font-weight: bold; color: #00ffcc; }
+        /* Chọn chế độ */
+        .setup-container { display: flex; gap: 10px; margin-bottom: 20px; }
+        .mode-btn { padding: 10px 25px; border: 1px solid #555; cursor: pointer; font-weight: bold; background: #333; color: #aaa; transition: 0.3s; }
+        .mode-btn.active { background: #0055ea; color: white; border-color: #00a2ff; box-shadow: 0 0 10px rgba(0,85,234,0.5); }
+
+        #main-layout { display: flex; align-items: center; gap: 30px; background: #262626; padding: 30px; border-radius: 4px; border: 1px solid #444; }
+
+        /* Đồng hồ tròn bên trái */
+        .timer-box { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 140px; }
+        #timer-svg { width: 120px; height: 120px; }
+        .track { fill: none; stroke: #333; stroke-width: 8; }
+        .progress { fill: none; stroke: #00ffcc; stroke-width: 8; stroke-dasharray: 314; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear; transform: rotate(-90deg); transform-origin: center; }
+        #timer-val { font-size: 32px; font-weight: bold; fill: #00ffcc; text-anchor: middle; dominant-baseline: middle; }
 
         /* Bàn cờ */
-        #game-outer { position: relative; width: 500px; height: 500px; border: 4px solid #444; }
+        #board-wrapper { position: relative; width: 480px; height: 480px; border: 5px solid #444; }
         #board { width: 100%; height: 100%; }
-        #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); z-index: 10; cursor: pointer; }
-        .click-cell { width: 100%; height: 100%; box-sizing: border-box; }
-        .border-selected { border: 4px solid #ffff00 !important; z-index: 11; background: rgba(255,255,0,0.2); } 
-        .border-hint { border: 4px solid #00ff00 !important; z-index: 11; }     
-        .border-check { border: 4px solid #ff0000 !important; z-index: 12; animation: blink 0.5s step-end infinite; } 
-        @keyframes blink { 50% { border-color: transparent; } }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); z-index: 10; }
+        .cell { pointer-events: all; cursor: pointer; }
+        .sel { border: 4px solid #ffff00; box-sizing: border-box; background: rgba(255,255,0,0.1); }
+        .hint { border: 4px solid #00ff00; box-sizing: border-box; }
+        .check-warn { border: 4px solid #ff0000 !important; animation: blink 0.5s infinite; }
+        @keyframes blink { 50% { opacity: 0.3; } }
 
         /* Nhật ký bên phải */
-        #side-panel { width: 300px; height: 500px; display: flex; flex-direction: column; gap: 10px; }
-        #logs { flex-grow: 1; background: #000; color: #0f0; padding: 12px; font-family: 'Consolas', monospace; overflow-y: auto; border: 1px solid #444; font-size: 11px; line-height: 1.6; border-radius: 4px; }
-        .log-time { color: #888; margin-right: 5px; }
-        .log-action { color: #fff; }
-        .log-sys { color: #007acc; font-weight: bold; }
+        .side-panel { width: 320px; height: 480px; display: flex; flex-direction: column; }
+        #logs { flex-grow: 1; background: #000; color: #00ff00; padding: 10px; font-family: 'Consolas', monospace; font-size: 11px; overflow-y: auto; border: 1px solid #444; border-bottom: none; }
+        .exit-btn { background: #cc3300; color: white; border: none; padding: 12px; cursor: pointer; font-weight: bold; }
         .log-warn { color: #ffcc00; }
-        .log-danger { color: #ff3333; font-weight: bold; }
-        .log-win { color: #ff00ff; font-weight: bold; border-left: 3px solid #ff00ff; padding-left: 5px; }
+        .log-err { color: #ff3333; font-weight: bold; }
+        .log-win { color: #00ffff; border-bottom: 1px dashed #00ffff; }
 
-        /* Modal */
-        #modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000; }
-        .critical-error-box { display: none; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); width: 350px; background: #f0f0f0; border: 2px solid #0055ea; z-index: 1001; color: #000; }
-        .ce-header { background: #0055ea; color: white; padding: 5px 10px; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; }
-        .ce-body { padding: 20px; display: flex; align-items: center; gap: 15px; background: white; }
-        .ce-footer { padding: 10px; text-align: right; background: #f0f0f0; border-top: 1px solid #ccc; }
-        .ce-btn { padding: 5px 15px; cursor: pointer; }
+        /* KHUNG THÔNG BÁO ERROR KIỂU CHUẨN */
+        #error-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; }
+        .error-box { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 380px; background: #f0f0f0; border: 1px solid #0055ea; box-shadow: 5px 5px 15px rgba(0,0,0,0.5); color: black; }
+        .error-header { background: linear-gradient(to right, #0055ea, #0a84ff); color: white; padding: 6px 10px; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; }
+        .error-body { padding: 25px 20px; display: flex; align-items: center; gap: 15px; }
+        .error-icon { width: 35px; height: 35px; background: #fbc02d; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); display: flex; justify-content: center; align-items: flex-end; font-weight: bold; font-size: 20px; padding-bottom: 2px; }
+        .error-footer { background: #f0f0f0; padding: 10px; text-align: right; border-top: 1px solid #ccc; }
+        .err-btn { padding: 5px 20px; min-width: 80px; cursor: pointer; border: 1px solid #777; background: #e1e1e1; margin-left: 10px; }
     </style>
 </head>
 <body>
 
-    <div id="modal-overlay"></div>
-    <div id="custom-modal" class="critical-error-box">
-        <div class="ce-header"><span>Hệ thống Chess Master</span><span style="cursor:pointer" onclick="closeModal()">×</span></div>
-        <div class="ce-body"><div id="ce-msg">Thông báo</div></div>
-        <div class="ce-footer" id="ce-buttons"></div>
+    <div class="setup-container">
+        <button id="btn-pve" class="mode-btn active" onclick="setMode('PVE')">NGƯỜI VS MÁY</button>
+        <button id="btn-pvp" class="mode-btn" onclick="setMode('PVP')">NGƯỜI VS NGƯỜI</button>
     </div>
 
-    <div id="main-container">
-        <div id="timer-container">
-            <svg width="120" height="120">
-                <circle class="circle-bg" cx="60" cy="60" r="50"></circle>
-                <circle id="progress-bar" class="circle-progress" cx="60" cy="60" r="50"></circle>
+    <div id="error-overlay">
+        <div class="error-box">
+            <div class="error-header"><span id="err-title">System Error</span><span style="cursor:pointer" onclick="closeErr()">×</span></div>
+            <div class="error-body">
+                <div class="error-icon">!</div>
+                <div id="err-text">Thông báo hệ thống.</div>
+            </div>
+            <div class="error-footer" id="err-btns"></div>
+        </div>
+    </div>
+
+    <div id="main-layout">
+        <div class="timer-box">
+            <svg id="timer-svg">
+                <circle class="track" cx="60" cy="60" r="50"></circle>
+                <circle id="progress" class="progress" cx="60" cy="60" r="50"></circle>
+                <text id="timer-val" x="60" y="60">30</text>
             </svg>
-            <div id="timer-text">30</div>
+            <div id="turn-label" style="color:#00ffcc; font-weight:bold;">LƯỢT: TRẮNG</div>
         </div>
 
-        <div id="game-outer">
+        <div id="board-wrapper">
             <div id="board"></div>
-            <div id="click-overlay"></div>
+            <div id="overlay"></div>
         </div>
 
-        <div id="side-panel">
-            <div style="text-align: center; color: #00ffcc; font-weight: bold;">NHẬT KÝ HOẠT ĐỘNG</div>
+        <div class="side-panel">
             <div id="logs"></div>
-            <button style="background:#444; color:white; padding:8px; border:none; cursor:pointer;" onclick="location.reload()">LÀM MỚI GAME</button>
+            <button class="exit-btn" onclick="triggerExit()">THOÁT TRÒ CHƠI</button>
         </div>
     </div>
 
@@ -77,133 +92,136 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
 
     <script>
-        var board = null, game = new Chess(), selectedSquare = null;
-        var timerMax = 30, timerValue = 30, timerInterval = null;
+        var game = new Chess(), board = null, selected = null, mode = 'PVE';
+        var tValue = 30, tMax = 30, tInterval = null;
 
-        function addLog(msg, type = '') {
-            const now = new Date();
-            const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-            $('#logs').append(`<div><span class="log-time">[${timeStr}]</span> <span class="${type}">${msg}</span></div>`);
+        function log(m, c='') {
+            const time = new Date().toLocaleTimeString('vi-VN', {hour12:false});
+            $('#logs').append(`<div class="${c}">[${time}] ${m}</div>`);
             $('#logs').scrollTop($('#logs')[0].scrollHeight);
         }
 
-        function updateTimerCircle() {
-            const offset = 314 - (timerValue / timerMax) * 314;
-            $('#progress-bar').css('stroke-dashoffset', offset);
-            $('#timer-text').text(timerValue);
-            
-            // Đổi màu khi sắp hết giờ
-            if (timerValue <= 5) {
-                $('#progress-bar, #timer-text').css('stroke', '#ff3333').css('color', '#ff3333');
-            } else {
-                $('#progress-bar, #timer-text').css('stroke', '#00ffcc').css('color', '#00ffcc');
-            }
+        function showErr(title, text, btns) {
+            $('#err-title').text(title); $('#err-text').text(text);
+            $('#err-btns').html(btns.map(b => `<button class="err-btn" onclick="${b.cb}">${b.txt}</button>`).join(''));
+            $('#error-overlay').show();
+        }
+        function closeErr() { $('#error-overlay').hide(); }
+
+        function updateTimer() {
+            const offset = 314 - (tValue / tMax) * 314;
+            $('#progress').css('stroke-dashoffset', offset);
+            $('#timer-val').text(tValue);
+            const color = tValue <= 5 ? '#ff3333' : '#00ffcc';
+            $('#progress').css('stroke', color); $('#timer-val').css('fill', color);
         }
 
-        function startTimer() {
-            stopTimer();
-            timerMax = (game.turn() === 'w') ? 30 : 10;
-            timerValue = timerMax;
-            updateTimerCircle();
-            
-            timerInterval = setInterval(() => {
-                timerValue--;
-                updateTimerCircle();
-                if (timerValue <= 0) {
-                    stopTimer();
-                    addLog("HỆ THỐNG: Quá 30 giây! Máy tự động đi thay người chơi.", "log-danger");
-                    makeAiMove();
+        function startClock() {
+            clearInterval(tInterval);
+            tMax = (game.turn() === 'w') ? 30 : (mode === 'PVE' ? 10 : 30);
+            tValue = tMax;
+            updateTimer();
+            tInterval = setInterval(() => {
+                tValue--; updateTimer();
+                if(tValue <= 0) {
+                    clearInterval(tInterval);
+                    log("CẢNH BÁO: Hết thời gian suy nghĩ!", "log-err");
+                    autoMove();
                 }
             }, 1000);
         }
 
-        function stopTimer() { clearInterval(timerInterval); }
-
-        function makeAiMove() {
-            let moves = game.moves();
-            if (moves.length === 0) return;
-            let move = moves[Math.floor(Math.random() * moves.length)];
-            game.move(move);
-            board.position(game.fen());
-            addLog(`MÁY: Đã thực hiện nước đi ${move}`, "log-action");
-            updateGameStatus();
+        function autoMove() {
+            const moves = game.moves();
+            if(moves.length > 0) {
+                const m = moves[Math.floor(Math.random() * moves.length)];
+                game.move(m); board.position(game.fen());
+                log(`HỆ THỐNG: Tự động đi ${m} cho quân ${game.turn()==='w'?'ĐEN':'TRẮNG'}`);
+                checkEnd();
+            }
         }
 
-        function initOverlay() {
-            const overlay = $('#click-overlay'); overlay.empty();
-            for(let i=8; i>=1; i--) ['a','b','c','d','e','f','g','h'].forEach(c => {
-                overlay.append(`<div class="click-cell" id="overlay-${c+i}" data-sq="${c+i}"></div>`);
-            });
+        function handleMove(from, to) {
+            const move = game.move({ from, to, promotion: 'q' });
+            if(move) {
+                log(`HÀNH ĐỘNG: ${from} -> ${to} (${move.piece.toUpperCase()})`);
+                board.position(game.fen());
+                checkEnd();
+                if(!game.game_over() && mode === 'PVE') setTimeout(aiMove, 600);
+                return true;
+            }
+            log(`LỖI: Nước đi ${from}-${to} không hợp lệ!`, "log-warn");
+            return false;
         }
 
-        $(document).on('click', '.click-cell', function() {
+        function aiMove() {
+            const moves = game.moves();
+            if(moves.length === 0) return;
+            const m = moves[Math.floor(Math.random() * moves.length)];
+            game.move(m); board.position(game.fen());
+            log(`MÁY: Đã đi ${m}`);
+            checkEnd();
+        }
+
+        function checkEnd() {
+            $('#turn-label').text("LƯỢT: " + (game.turn()==='w'?'TRẮNG':'ĐEN'));
+            $('.cell').removeClass('check-warn');
+            if(game.in_check()) {
+                log(`CẢNH BÁO: Quân ${game.turn()==='w'?'TRẮNG':'ĐEN'} đang bị chiếu!`, "log-err");
+            }
+            if(game.moves().length === 0) {
+                clearInterval(tInterval);
+                const win = game.turn()==='w'?'ĐEN':'TRẮNG';
+                log(`KẾT THÚC: QUÂN ${win} CHIẾN THẮNG!`, "log-win");
+                showErr("Game Over", `QUÂN ${win} ĐÃ CHIẾN THẮNG TRẬN ĐẤU!`, [{txt:"Chơi lại", cb:"location.reload()"}]);
+            } else startClock();
+        }
+
+        function setMode(m) {
+            if(game.history().length > 0) {
+                showErr("Xác nhận", "Trận đấu đang diễn ra, bạn muốn đổi chế độ và chơi lại từ đầu?", [
+                    {txt:"Đúng", cb:`location.reload()`}, {txt:"Hủy", cb:"closeErr()"}
+                ]);
+            } else { mode = m; $('.mode-btn').removeClass('active'); $(`#btn-${m.toLowerCase()}`).addClass('active'); log(`HỆ THỐNG: Chuyển sang ${m}`); }
+        }
+
+        function triggerExit() {
+            showErr("Xác nhận thoát", "Dữ liệu trận đấu sẽ bị mất. Bạn có chắc chắn muốn thoát?", [
+                {txt:"Thoát", cb:"location.reload()"}, {txt:"Tiếp tục chơi", cb:"closeErr()"}
+            ]);
+        }
+
+        // Khởi tạo bàn cờ & Overlay
+        board = Chessboard('board', { position: 'start', draggable: false, pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png' });
+        for(let i=8; i>=1; i--) ['a','b','c','d','e','f','g','h'].forEach(c => {
+            $('#overlay').append(`<div class="cell" id="c-${c+i}" data-sq="${c+i}"></div>`);
+        });
+
+        $(document).on('click', '.cell', function(){
             const sq = $(this).data('sq');
-            const piece = game.get(sq);
-
-            if (selectedSquare) {
-                if (sq === selectedSquare) {
-                    addLog(`BẠN: Hủy chọn ô ${sq}`, "log-sys");
-                    selectedSquare = null; clearBorders(); return;
-                }
-                
-                let move = game.move({ from: selectedSquare, to: sq, promotion: 'q' });
-                if (move) {
-                    addLog(`BẠN: Di chuyển ${move.piece.toUpperCase()} từ ${move.from} đến ${move.to}`, "log-action");
-                    board.position(game.fen());
-                    selectedSquare = null; clearBorders();
-                    updateGameStatus();
-                    if (!game.game_over()) setTimeout(makeAiMove, 600);
-                } else {
-                    if (piece && piece.color === game.turn()) {
-                        selectPiece(sq);
-                    } else {
-                        addLog(`LỖI: Nước đi đến ${sq} không hợp lệ!`, "log-warn");
-                    }
+            if(selected) {
+                if(selected === sq) { selected = null; $('.cell').removeClass('sel hint'); log(`BẠN: Hủy chọn ô ${sq}`); }
+                else if(handleMove(selected, sq)) { selected = null; $('.cell').removeClass('sel hint'); }
+                else {
+                    const p = game.get(sq);
+                    if(p && p.color === game.turn()) selectSq(sq);
                 }
             } else {
-                if (piece) {
-                    if (piece.color === game.turn()) selectPiece(sq);
-                    else addLog(`LỖI: Không thể chọn quân đối phương!`, "log-warn");
-                } else {
-                    addLog(`HỆ THỐNG: Ô ${sq} trống.`, "log-sys");
-                }
+                const p = game.get(sq);
+                if(p && p.color === game.turn()) selectSq(sq);
+                else if(p) log("LỖI: Không thể chọn quân của đối phương!", "log-warn");
             }
         });
 
-        function selectPiece(sq) {
-            selectedSquare = sq;
-            let p = game.get(sq);
-            addLog(`BẠN: Đang chọn ${p.type.toUpperCase()} tại ${sq}`, "log-sys");
-            drawBorders(sq);
+        function selectSq(sq) {
+            selected = sq; $('.cell').removeClass('sel hint');
+            $(`#c-${sq}`).addClass('sel');
+            game.moves({square:sq, verbose:true}).forEach(m => $(`#c-${m.to}`).addClass('hint'));
+            log(`BẠN: Đã chọn quân tại ${sq}`);
         }
 
-        function updateGameStatus() {
-            if (game.in_check()) {
-                addLog(`CẢNH BÁO: Quân ${game.turn()==='w'?'TRẮNG':'ĐEN'} đang bị chiếu!`, "log-danger");
-                let k = ""; game.board().forEach((r,ri)=>r.forEach((p,ci)=>{if(p&&p.type==='k'&&p.color===game.turn()) k=String.fromCharCode(97+ci)+(8-ri)}));
-                $(`#overlay-${k}`).addClass('border-check');
-            }
-
-            if (game.moves().length === 0) {
-                stopTimer();
-                let winner = (game.turn() === 'w') ? "QUÂN ĐEN" : "QUÂN TRẮNG";
-                addLog(`TRẬN ĐẤU KẾT THÚC: ${winner} THẮNG CUỘC!`, "log-win");
-                showCriticalError("Kết thúc", winner + " CHIẾN THẮNG!", [{text: "Chơi lại", click: "location.reload()"}]);
-            } else {
-                startTimer();
-            }
-        }
-
-        function drawBorders(s) { clearBorders(); $(`#overlay-${s}`).addClass('border-selected'); game.moves({square:s, verbose:true}).forEach(m=>$(`#overlay-${m.to}`).addClass('border-hint')) }
-        function clearBorders() { $('.click-cell').removeClass('border-selected border-hint border-check') }
-        function showCriticalError(t,m,b) { $('#ce-msg').text(m); $('#ce-buttons').html(b.map(x=>`<button class="ce-btn" onclick="${x.click}">${x.text}</button>`).join('')); $('#modal-overlay, #custom-modal').show(); }
-        function closeModal() { $('#modal-overlay, #custom-modal').hide(); }
-
-        board = Chessboard('board', { position: 'start', draggable: false, pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png' });
-        initOverlay();
-        addLog("HỆ THỐNG: Chào mừng bạn đến với Chess Master!", "log-sys");
-        addLog("HỆ THỐNG: Bắt đầu lượt của quân TRẮNG (30s).", "log-sys");
-        startTimer();
+        log("HỆ THỐNG: Khởi tạo thành công. Lượt Trắng bắt đầu.");
+        startClock();
     </script>
 </body>
 </html>
