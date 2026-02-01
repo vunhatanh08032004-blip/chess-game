@@ -1,67 +1,58 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Chess - Click to Move Pro</title>
-    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
+    <title>Chess Master - Full Alerts</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <style>
-        body { background: #1a1a1a; color: white; font-family: Arial; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        #game-container { position: relative; display: flex; gap: 20px; background: #262626; padding: 20px; border-radius: 8px; }
-        #board { width: 450px; cursor: pointer; }
-        
-        /* Hiệu ứng ô cờ */
-        .highlight-selected { background: rgba(255, 255, 0, 0.6) !important; }
-        .highlight-hint { position: relative; background: rgba(0, 255, 0, 0.2) !important; }
-        .highlight-hint::after { 
-            content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 15px; height: 15px; background: rgba(0, 255, 0, 0.5); border-radius: 50%; 
-        }
-        .highlight-check { background: rgba(255, 0, 0, 0.8) !important; box-shadow: inset 0 0 10px #000; }
-
-        .info-bar { margin: 10px 0; padding: 10px; background: #333; width: 100%; text-align: center; color: #ffd700; border-radius: 4px; }
-        .controls { margin-bottom: 10px; display: flex; gap: 10px; }
-        button { padding: 10px 20px; cursor: pointer; border: none; font-weight: bold; border-radius: 4px; }
+        body { background: #1a1a1a; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        #game-container { display: flex; gap: 20px; background: #262626; padding: 20px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        #board { width: 450px; }
+        .highlight-selected { background: rgba(255, 255, 0, 0.5) !important; }
+        .highlight-hint { background: rgba(0, 255, 0, 0.3) !important; }
+        .highlight-check { background: rgba(255, 0, 0, 0.7) !important; }
+        .info-bar { margin: 10px 0; padding: 10px; background: #333; width: 100%; text-align: center; color: #00ffcc; border-radius: 5px; }
+        .controls { margin-bottom: 15px; display: flex; gap: 10px; }
+        button { padding: 10px 20px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; }
         .btn-mode { background: #444; color: #ccc; }
         .btn-mode.active { background: #007acc; color: white; }
-        .btn-exit { background: #c0392b; color: white; width: 100%; margin-top: 10px; }
-
-        /* Modal thông báo */
-        #modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; }
-        #custom-modal { display: none; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:white; color:black; padding:30px; border-radius:10px; text-align:center; z-index:10000; }
+        .btn-exit { background: #e74c3c; color: white; width: 100%; margin-top: 10px; }
+        #modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:100; }
+        #custom-modal { display: none; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:white; color:black; padding:30px; border-radius:10px; text-align:center; z-index:101; border: 4px solid #27ae60; }
     </style>
 </head>
 <body>
 
     <div id="modal-overlay"></div>
     <div id="custom-modal">
-        <h2 id="modal-title">THẮNG CUỘC!</h2>
-        <p id="modal-msg" style="margin: 15px 0;"></p>
-        <button onclick="location.reload()" style="background:#27ae60; color:white;">CHỌN LẠI CHẾ ĐỘ</button>
+        <h1 id="modal-title">CHIẾN THẮNG!</h1>
+        <p id="modal-msg"></p>
+        <button onclick="location.reload()" style="background:#27ae60; color:white; padding:10px 30px;">CHỌN LẠI CHẾ ĐỘ</button>
     </div>
 
     <div class="controls">
-        <button id="pve-btn" class="btn-mode active" onclick="setMode('PVE')">NGƯỜI VS MÁY</button>
-        <button id="pvp-btn" class="btn-mode" onclick="setMode('PVP')">NGƯỜI VS NGƯỜI</button>
+        <button id="pve-btn" class="btn-mode active" onclick="setGameMode('PVE')">NGƯỜI VS MÁY</button>
+        <button id="pvp-btn" class="btn-mode" onclick="setGameMode('PVP')">NGƯỜI VS NGƯỜI</button>
     </div>
 
     <div id="game-container">
         <div>
             <div id="board"></div>
-            <div class="info-bar" id="status">LƯỢT: TRẮNG</div>
-            <button class="btn-exit" onclick="location.reload()">THOÁT & RESET</button>
+            <div class="info-bar" id="status">LƯỢT ĐI: TRẮNG</div>
+            <button class="btn-exit" onclick="confirmExit()">THOÁT & RESET</button>
         </div>
-        <div id="logs" style="width:250px; background:black; color:#0f0; padding:10px; font-family:monospace; font-size:12px; height:450px; overflow-y:auto;">
-            > Sẵn sàng di chuyển...
+        <div id="logs" style="width:250px; background:black; color:#0f0; padding:10px; font-family:monospace; height:450px; overflow-y:auto; font-size:12px;">
+            > Chào mừng bạn!
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
     <script>
-        // Cấu hình Firebase (Thay bằng config của bạn)
+        // Cấu hình Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyCJRXRhYXBbc0DiwZg3KXnySGJ63z4Ow2s",
             databaseURL: "https://chessonline-43534-default-rtdb.firebaseio.com",
@@ -70,49 +61,65 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         const gameRef = db.ref('chess_global/room1');
+        const playersRef = db.ref('online_players');
 
         var board = null;
         var game = new Chess();
         var selectedSquare = null;
         var currentMode = 'PVE';
+        var myId = Math.random().toString(36).substr(2, 9);
 
-        // HÀM CLICK CHÍNH
+        // 1. Thông báo khi chọn chế độ
+        function setGameMode(m) {
+            let modeName = m === 'PVE' ? "Người vs Máy" : "Người vs Người";
+            alert("Bạn đã chọn chế độ: " + modeName);
+            currentMode = m;
+            location.reload(); 
+        }
+
+        // 2. Thông báo xác nhận thoát (Yes/No)
+        function confirmExit() {
+            let text = "Bạn có chắc chắn muốn thoát không?\nKết quả trận đấu sẽ bị hủy.";
+            if (confirm(text) == true) {
+                playersRef.child(myId).remove();
+                gameRef.remove();
+                location.reload();
+            } else {
+                // Người dùng chọn No, không làm gì cả
+            }
+        }
+
+        // Theo dõi số lượng người chơi (Thông báo đủ người)
+        playersRef.child(myId).set(true);
+        playersRef.child(myId).onDisconnect().remove();
+        playersRef.on('value', snap => {
+            if (currentMode === 'PVP' && snap.numChildren() === 2) {
+                alert("Đã đủ 2 người chơi! Trận đấu bắt đầu.");
+                addLog("HỆ THỐNG: Đã kết nối đối thủ.");
+            }
+        });
+
         function onSquareClick(square) {
-            // Nếu đã chọn một quân cờ trước đó
             if (selectedSquare) {
-                var move = game.move({
-                    from: selectedSquare,
-                    to: square,
-                    promotion: 'q'
-                });
-
-                // Nếu di chuyển sai/không hợp lệ
+                var move = game.move({ from: selectedSquare, to: square, promotion: 'q' });
                 if (move === null) {
                     var piece = game.get(square);
-                    // Nếu click vào một quân khác của mình -> Đổi chọn quân đó
                     if (piece && piece.color === game.turn()) {
                         selectedSquare = square;
                         highlightMoves(square);
                     } else {
-                        // Click ra ngoài -> Hủy chọn
                         selectedSquare = null;
                         clearHighlights();
                     }
                 } else {
-                    // DI CHUYỂN HỢP LỆ
                     selectedSquare = null;
                     clearHighlights();
                     board.position(game.fen());
-                    afterMoveActions();
-                    
-                    if (currentMode === 'PVE' && !game.game_over()) {
-                        setTimeout(makeAiMove, 500);
-                    } else if (currentMode === 'PVP') {
-                        gameRef.set({ fen: game.fen() });
-                    }
+                    checkStatus();
+                    if (currentMode === 'PVE' && !game.game_over()) setTimeout(makeAiMove, 500);
+                    if (currentMode === 'PVP') gameRef.set({ fen: game.fen() });
                 }
             } else {
-                // CHƯA CHỌN QUÂN -> CHỌN QUÂN
                 var piece = game.get(square);
                 if (piece && piece.color === game.turn()) {
                     selectedSquare = square;
@@ -124,36 +131,25 @@
         function highlightMoves(square) {
             clearHighlights();
             $(`#board .square-${square}`).addClass('highlight-selected');
-            var moves = game.moves({ square: square, verbose: true });
-            moves.forEach(m => {
+            game.moves({ square: square, verbose: true }).forEach(m => {
                 $(`#board .square-${m.to}`).addClass('highlight-hint');
             });
         }
 
         function clearHighlights() {
-            $('#board .square-55d6').removeClass('highlight-selected highlight-hint highlight-check');
+            $('.square-55d6').removeClass('highlight-selected highlight-hint highlight-check');
         }
 
-        function afterMoveActions() {
+        function checkStatus() {
             var turn = game.turn() === 'w' ? "TRẮNG" : "ĐEN";
-            $('#status').text("LƯỢT: " + turn);
-
-            // Cảnh báo đỏ khi Người chơi bị chiếu
+            $('#status').text("LƯỢT ĐI: " + turn);
             if (game.in_check()) {
-                if (currentMode === 'PVP' || (currentMode === 'PVE' && game.turn() === 'w')) {
-                    var kingPos = findKing(game.turn());
-                    $(`#board .square-${kingPos}`).addClass('highlight-check');
-                }
+                var kingPos = findKing(game.turn());
+                $(`#board .square-${kingPos}`).addClass('highlight-check');
             }
-
-            // Kiểm tra mất Tướng (Checkmate)
             if (game.in_checkmate()) {
-                var loser = game.turn() === 'w' ? "TRẮNG" : "ĐEN";
-                var winner = loser === "TRẮNG" ? "ĐEN" : "TRẮNG";
-                
-                var winMsg = (currentMode === 'PVE' && winner === "ĐEN") ? "MÁY ĐÃ ĂN TƯỚNG CỦA BẠN!" : winner + " ĐÃ ĂN TƯỚNG!";
-                
-                $('#modal-msg').text(winMsg);
+                var winner = game.turn() === 'w' ? "QUÂN ĐEN" : "QUÂN TRẮNG";
+                $('#modal-msg').text(winner + " ĐÃ ĂN ĐƯỢC TƯỚNG!");
                 $('#modal-overlay, #custom-modal').show();
             }
         }
@@ -161,10 +157,9 @@
         function makeAiMove() {
             var moves = game.moves();
             if (moves.length === 0) return;
-            var move = moves[Math.floor(Math.random() * moves.length)];
-            game.move(move);
+            game.move(moves[Math.floor(Math.random() * moves.length)]);
             board.position(game.fen());
-            afterMoveActions();
+            checkStatus();
         }
 
         function findKing(color) {
@@ -175,37 +170,28 @@
                         return String.fromCharCode(97 + j) + (8 - i);
         }
 
-        function setMode(m) {
-            currentMode = m;
-            $('.btn-mode').removeClass('active');
-            $(`#${m.toLowerCase()}-btn`).addClass('active');
-            game.reset();
-            board.position('start');
-            clearHighlights();
+        function addLog(msg) {
+            $('#logs').append(`<div>> ${msg}</div>`);
+            $('#logs').scrollTop($('#logs')[0].scrollHeight);
         }
 
-        // Khởi tạo bàn cờ
         board = Chessboard('board', {
             position: 'start',
-            draggable: false, // Bắt buộc false để dùng click
+            draggable: false,
             pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
         });
 
-        // LẮNG NGHE SỰ KIỆN CLICK (Sửa lỗi không nhấn được)
-        $(document).on('click', '#board .square-55d6', function() {
-            var square = $(this).attr('data-square');
-            onSquareClick(square);
+        $(document).on('click', '.square-55d6', function() {
+            onSquareClick($(this).attr('data-square'));
         });
 
-        // Sync PVP
         gameRef.on('value', snap => {
             if (currentMode === 'PVP' && snap.val()) {
                 game.load(snap.val().fen);
                 board.position(game.fen());
-                afterMoveActions();
+                checkStatus();
             }
         });
-
     </script>
 </body>
 </html>
