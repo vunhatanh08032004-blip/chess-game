@@ -7,11 +7,12 @@
         body { background: #1a1a1a; color: white; font-family: 'Segoe UI', Arial; display: flex; flex-direction: column; align-items: center; padding: 20px; }
         #main-layout { display: flex; gap: 20px; background: #262626; padding: 20px; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
-        /* Trạng thái ẩn mờ bàn cờ */
-        #game-outer { position: relative; width: 450px; height: 450px; border: 2px solid #555; transition: all 0.5s; }
-        .board-hidden { opacity: 0.1; filter: blur(2px); pointer-events: none; }
+        /* Hiệu ứng mờ bàn cờ theo hình ảnh */
+        #game-outer { position: relative; width: 450px; height: 450px; border: 2px solid #333; transition: all 0.3s ease; }
+        .board-hidden #board { filter: blur(8px); opacity: 0.6; }
+        .board-hidden #click-overlay { pointer-events: none; }
         
-        #board { width: 100%; height: 100%; }
+        #board { width: 100%; height: 100%; transition: filter 0.5s, opacity 0.5s; }
         #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); z-index: 10; cursor: pointer; }
         .click-cell { width: 100%; height: 100%; box-sizing: border-box; border: 3px solid transparent; }
         
@@ -20,10 +21,10 @@
         
         #logs-container { width: 250px; display: flex; flex-direction: column; }
         #logs { flex-grow: 1; background: #000; color: #0f0; padding: 10px; font-family: monospace; height: 400px; overflow-y: auto; border: 1px solid #444; font-size: 12px; }
-        .info-bar { margin: 10px 0; padding: 10px; background: #333; text-align: center; color: #00ffcc; font-weight: bold; border-radius: 4px; }
-        #timer-span { color: #ff4d4d; margin-left: 10px; }
+        .info-bar { margin: 10px 0; padding: 10px; background: #1a1a1a; text-align: center; color: #00ffcc; font-weight: bold; border-radius: 4px; display: flex; justify-content: center; gap: 10px; }
+        #timer-span { color: #ff4d4d; }
         
-        #modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000; }
+        #modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; }
         .critical-error-box { display: none; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); width: 380px; background: #f0f0f0; border: 2px solid #0055ea; z-index: 1001; color: #000; }
         .ce-header { background: linear-gradient(to right, #0055ea, #0a84ff); color: white; padding: 5px 10px; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; }
         .ce-body { padding: 25px 20px; display: flex; align-items: center; gap: 15px; background: white; }
@@ -31,8 +32,8 @@
         .ce-footer { padding: 10px; text-align: center; background: #f0f0f0; border-top: 1px solid #ccc; }
         .ce-btn { min-width: 80px; padding: 5px 15px; background: #e1e1e1; border: 1px solid #777; cursor: pointer; margin: 0 5px; }
 
-        .controls { margin-bottom: 15px; }
-        .mode-btn { padding: 10px 20px; background: #444; color: #ccc; border: none; cursor: pointer; margin-right: 5px; font-weight: bold; }
+        .controls { margin-bottom: 15px; display: flex; gap: 10px; }
+        .mode-btn { padding: 10px 20px; background: #444; color: #ccc; border: none; cursor: pointer; font-weight: bold; min-width: 150px; }
         .mode-btn.active { background: #007acc; color: white; }
     </style>
 </head>
@@ -57,14 +58,14 @@
                 <div id="click-overlay"></div>
             </div>
             <div class="info-bar">
-                <span id="status">CHỜ CHỌN CHẾ ĐỘ</span>
+                <span id="status">LƯỢT ĐI: TRẮNG</span>
                 <span id="timer-span">30s</span>
             </div>
         </div>
         <div id="side-panel">
             <div id="logs-container">
-                <div id="logs">> Hệ thống sẵn sàng.</div>
-                <button id="exit-btn" style="background:#e74c3c; color:white; padding:10px; border:none; cursor:pointer; margin-top:10px; display:none;" onclick="confirmExit()">THOÁT TRẬN</button>
+                <div id="logs">> Trò chơi đã sẵn sàng.</div>
+                <button id="exit-btn" style="background:#e74c3c; color:white; padding:12px; border:none; cursor:pointer; margin-top:10px; font-weight:bold;" onclick="confirmExit()">THOÁT TRẬN</button>
             </div>
         </div>
     </div>
@@ -76,14 +77,14 @@
     <script>
         var board = null, game = new Chess(), selectedSquare = null;
         var currentMode = null, myColor = 'w', timerValue = 30, timerInterval = null;
-        var afkCount = 0, isMatchmaking = false;
+        var afkCount = 0, isSearching = false;
 
         function addLog(m) { 
             $('#logs').append(`<div>> ${m}</div>`); 
             $('#logs').scrollTop($('#logs')[0].scrollHeight); 
         }
 
-        // Tạo các ô click ảo
+        // Khởi tạo các ô nhận diện click
         for(let i=8; i>=1; i--) ['a','b','c','d','e','f','g','h'].forEach(c => $('#click-overlay').append(`<div class="click-cell" id="overlay-${c+i}" data-sq="${c+i}"></div>`));
 
         function startTimer() {
@@ -95,30 +96,30 @@
                 $('#timer-span').text(timerValue + "s");
                 if (timerValue <= 0) {
                     clearInterval(timerInterval);
-                    handleAFK();
+                    handleAFKMove();
                 }
             }, 1000);
         }
 
-        function handleAFK() {
+        function handleAFKMove() {
             if (game.game_over()) return;
             afkCount++;
             if (afkCount >= 5) {
-                showCriticalError("Cảnh báo", "Đối thủ không còn chơi, bạn có muốn thoát không?", [
-                    {text: "Thoát", click: "resetToLobby()"},
+                showCriticalError("Thông báo", "Đối thủ không còn chơi, bạn có muốn thoát không?", [
+                    {text: "Thoát", click: "resetToHome()"},
                     {text: "Tiếp tục", click: "closeModal(); startTimer();"}
                 ]);
-                return;
+            } else {
+                addLog("Tự động đi hộ do hết thời gian...");
+                executeAiLogic(true); 
             }
-            addLog("Hệ thống tự động di chuyển do hết thời gian...");
-            makeAiMove(true); 
         }
 
-        function makeAiMove(isInstant = false) {
+        function executeAiLogic(isInstant = false) {
             if (game.game_over()) return;
             let moves = game.moves();
-            // Máy suy nghĩ từ 5-10s cho PVE, hoặc nhanh hơn nếu là AFK move
-            let delay = isInstant ? 500 : (Math.floor(Math.random() * 5000) + 5000);
+            // Máy suy nghĩ 5-10s cho PVE (nhưng timer vẫn hiện 30s), instant nếu là AFK move
+            let thinkingTime = isInstant ? 500 : (Math.floor(Math.random() * 5001) + 5000);
             
             setTimeout(() => {
                 let move = moves[Math.floor(Math.random() * moves.length)];
@@ -126,7 +127,7 @@
                 board.position(game.fen());
                 addLog(`Đối thủ: ${move}`);
                 updateGameStatus();
-            }, delay);
+            }, thinkingTime);
         }
 
         $(document).on('click', '.click-cell', function() {
@@ -139,12 +140,12 @@
                     addLog(`Bạn: ${move.from}-${move.to}`);
                     board.position(game.fen());
                     selectedSquare = null; clearBorders(); updateGameStatus();
-                    if (currentMode === 'PVE') makeAiMove();
-                } else { selectPiece(sq); }
-            } else { selectPiece(sq); }
+                    if (currentMode === 'PVE') executeAiLogic();
+                } else { attemptSelect(sq); }
+            } else { attemptSelect(sq); }
         });
 
-        function selectPiece(sq) {
+        function attemptSelect(sq) {
             let p = game.get(sq);
             if (p && p.color === game.turn() && p.color === myColor) {
                 selectedSquare = sq; drawBorders(sq);
@@ -156,77 +157,75 @@
             if (game.game_over()) {
                 clearInterval(timerInterval);
                 let winner = (game.turn() === 'w') ? "ĐEN" : "TRẮNG";
-                showCriticalError("Kết thúc", `QUÂN ${winner} THẮNG!`, [{text: "Chơi lại", click: "resetToLobby()"}]);
+                showCriticalError("Kết thúc", `QUÂN ${winner} THẮNG!`, [{text: "Chơi lại", click: "resetToHome()"}]);
             } else startTimer();
         }
 
         function requestChangeMode(m) {
             if (m === 'PVP') {
-                let waitSec = 60;
-                isMatchmaking = true;
-                showCriticalError("Ghép trận", `Đang tìm đối thủ... (${waitSec}s)`, []);
+                let countdown = 60;
+                isSearching = true;
+                showCriticalError("Ghép trận", `Đang tìm đối thủ... (${countdown}s)`, []);
                 
-                let matchTimer = setInterval(() => {
-                    waitSec--;
-                    $('#ce-msg').text(`Đang tìm đối thủ... (${waitSec}s)`);
-                    if (waitSec <= 0 || !isMatchmaking) {
-                        clearInterval(matchTimer);
-                        if(isMatchmaking) showCriticalError("Lỗi", "Không tìm thấy đối thủ.", [{text: "Đóng", click: "closeModal()"}]);
+                let searchTimer = setInterval(() => {
+                    countdown--;
+                    $('#ce-msg').text(`Đang tìm đối thủ... (${countdown}s)`);
+                    if (countdown <= 0 || !isSearching) {
+                        clearInterval(searchTimer);
+                        if(isSearching) showCriticalError("Lỗi", "Không tìm thấy người chơi.", [{text: "Đóng", click: "closeModal()"}]);
                     }
-                    if (waitSec === 57) { // Giả lập tìm thấy trận
-                        clearInterval(matchTimer);
-                        isMatchmaking = false;
-                        startGame(m);
+                    if (countdown === 57) { // Giả lập tìm thấy trận sau 3s
+                        clearInterval(searchTimer);
+                        isSearching = false;
+                        beginGame(m);
                     }
                 }, 1000);
             } else {
-                showCriticalError("Thông báo", "Đã vào trận với Máy!", [{text: "Bắt đầu", click: "startGame('PVE')"}]);
+                showCriticalError("Thông báo", "Đã vào trận với Máy!", [{text: "Bắt đầu", click: "beginGame('PVE')"}]);
             }
         }
 
-        function startGame(m) {
+        function beginGame(m) {
             closeModal();
             currentMode = m;
             game.reset();
             afkCount = 0;
             
-            // Random màu cờ
+            // Random màu quân cờ
             myColor = Math.random() > 0.5 ? 'w' : 'b';
             board.orientation(myColor === 'w' ? 'white' : 'black');
             board.start();
             
-            // Hiện bàn cờ
+            // Hiện bàn cờ (xóa class blur)
             $('#game-outer').removeClass('board-hidden');
-            $('#exit-btn').show();
             $('.mode-btn').removeClass('active');
             $(`#${m.toLowerCase()}-btn`).addClass('active');
             
-            addLog(`Trận đấu bắt đầu! Bạn cầm quân ${myColor === 'w' ? 'TRẮNG' : 'ĐEN'}.`);
+            addLog(`Trận đấu bắt đầu. Bạn cầm quân ${myColor === 'w' ? 'TRẮNG' : 'ĐEN'}.`);
             
             if (myColor === 'b') {
                 updateGameStatus();
-                makeAiMove(); // Máy (Trắng) đi trước
+                executeAiLogic(); // Máy đi trước nếu người chơi là Đen
             } else {
                 updateGameStatus();
             }
         }
 
-        function resetToLobby() {
+        function resetToHome() {
             closeModal();
             currentMode = null;
-            isMatchmaking = false;
+            isSearching = false;
             clearInterval(timerInterval);
-            $('#game-outer').addClass('board-hidden');
-            $('#exit-btn').hide();
+            $('#game-outer').addClass('board-hidden'); // Làm mờ bàn cờ lại
             $('.mode-btn').removeClass('active');
-            $('#status').text("CHỜ CHỌN CHẾ ĐỘ");
+            $('#status').text("LƯỢT ĐI: TRẮNG");
             $('#timer-span').text("30s");
-            addLog("Đã quay lại sảnh chờ.");
+            addLog("Đã thoát trận.");
         }
 
         function confirmExit() {
-            showCriticalError("Thoát", "Bạn có chắc muốn thoát trận này?", [
-                {text:"Có", click:"resetToLobby()"}, 
+            showCriticalError("Thoát", "Bạn có chắc muốn thoát trận đấu này?", [
+                {text:"Có", click:"resetToHome()"}, 
                 {text:"Không", click:"closeModal()"}
             ]);
         }
@@ -234,7 +233,7 @@
         function drawBorders(s) { clearBorders(); $(`#overlay-${s}`).addClass('border-selected'); game.moves({square:s, verbose:true}).forEach(m=>$(`#overlay-${m.to}`).addClass('border-hint')) }
         function clearBorders() { $('.click-cell').removeClass('border-selected border-hint') }
         function showCriticalError(t,m,b) { $('#ce-title').text(t); $('#ce-msg').text(m); $('#ce-buttons').html(b.map(x=>`<button class="ce-btn" onclick="${x.click}">${x.text}</button>`).join('')); $('#modal-overlay, #custom-modal').show(); }
-        function closeModal() { $('#modal-overlay, #custom-modal').hide(); isMatchmaking = false;}
+        function closeModal() { $('#modal-overlay, #custom-modal').hide(); isSearching = false; }
 
         board = Chessboard('board', { position: 'start', draggable: false, pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png' });
     </script>
