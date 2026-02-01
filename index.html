@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Chess Master - Pro Matchmaking</title>
+    <title>Chess Master - Matchmaking Edition</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <style>
         body { background: #1a1a1a; color: white; font-family: 'Segoe UI', Arial; display: flex; flex-direction: column; align-items: center; padding: 20px; }
@@ -21,26 +21,24 @@
         .info-bar { margin: 10px 0; padding: 10px; background: #333; text-align: center; color: #00ffcc; font-weight: bold; border-radius: 4px; }
         #timer-span { color: #ff4d4d; margin-left: 10px; }
         
-        #modal-overlay { display: block; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; }
-        .critical-error-box { display: block; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); width: 400px; background: #f0f0f0; border: 2px solid #0055ea; z-index: 1001; color: #000; }
+        #modal-overlay { display: block; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; }
+        .critical-error-box { display: block; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); width: 380px; background: #f0f0f0; border: 2px solid #0055ea; z-index: 1001; color: #000; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         .ce-header { background: linear-gradient(to right, #0055ea, #0a84ff); color: white; padding: 5px 10px; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; }
-        .ce-body { padding: 25px 20px; display: flex; align-items: center; gap: 15px; background: white; min-height: 80px; }
+        .ce-body { padding: 25px 20px; display: flex; align-items: center; gap: 15px; background: white; min-height: 60px; }
         .ce-icon { width: 35px; height: 35px; background: #fbc02d; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); display: flex; justify-content: center; align-items: flex-end; font-weight: bold; font-size: 18px; padding-bottom: 2px; }
         .ce-footer { padding: 10px; text-align: center; background: #f0f0f0; border-top: 1px solid #ccc; }
-        .ce-btn { min-width: 90px; padding: 6px 15px; background: #e1e1e1; border: 1px solid #777; cursor: pointer; margin: 0 5px; font-size: 12px; }
-
-        .controls { margin-bottom: 15px; }
+        .ce-btn { min-width: 80px; padding: 5px 15px; background: #e1e1e1; border: 1px solid #777; cursor: pointer; margin: 0 5px; }
     </style>
 </head>
 <body>
 
     <div id="modal-overlay"></div>
     <div id="custom-modal" class="critical-error-box">
-        <div class="ce-header"><span id="ce-title">Hệ thống Chess Master</span></div>
+        <div class="ce-header"><span id="ce-title">Hệ thống Chess</span></div>
         <div class="ce-body"><div class="ce-icon">!</div><div id="ce-msg">Vui lòng chọn chế độ để bắt đầu</div></div>
         <div class="ce-footer" id="ce-buttons">
-            <button class="ce-btn" onclick="startMatchmaking('PVE')">NGƯỜI VS MÁY</button>
-            <button class="ce-btn" onclick="startMatchmaking('PVP')">NGƯỜI VS NGƯỜI</button>
+            <button class="ce-btn" onclick="requestMatch('PVE')">NGƯỜI VS MÁY</button>
+            <button class="ce-btn" onclick="requestMatch('PVP')">NGƯỜI VS NGƯỜI</button>
         </div>
     </div>
 
@@ -56,7 +54,7 @@
             </div>
         </div>
         <div id="logs-container">
-            <div id="logs">> Đang khởi tạo...</div>
+            <div id="logs">> Trò chơi đã sẵn sàng.</div>
             <button style="background:#e74c3c; color:white; padding:10px; border:none; cursor:pointer; margin-top:10px; font-weight:bold;" onclick="confirmExit()">THOÁT TRẬN</button>
         </div>
     </div>
@@ -66,8 +64,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
 
     <script>
-        var board = null, game = new Chess(), selectedSquare = null, currentMode = 'PVE', myColor = 'w';
-        var timerValue = 30, timerInterval = null, matchmakingInterval = null;
+        var board = null, game = new Chess(), selectedSquare = null;
+        var currentMode = 'PVE', myColor = 'w';
+        var timerValue = 30, timerInterval = null, afkCount = { w: 0, b: 0 };
 
         function addLog(m) { 
             $('#logs').append(`<div>> ${m}</div>`); 
@@ -83,7 +82,15 @@
                 $('#timer-span').text(timerValue + "s");
                 if (timerValue <= 0) {
                     clearInterval(timerInterval);
-                    if (currentMode === 'PVE') makeAiMove();
+                    afkCount[game.turn()]++;
+                    if (afkCount[game.turn()] >= 5) {
+                        showCriticalError("Cảnh báo", "Đối thủ không còn chơi, bạn có muốn thoát không?", [
+                            {text: "Thoát", click: "location.reload()"},
+                            {text: "Tiếp tục", click: "makeAiMove()"}
+                        ]);
+                    } else {
+                        makeAiMove();
+                    }
                 }
             }, 1000);
         }
@@ -94,37 +101,33 @@
             let move = moves[Math.floor(Math.random() * moves.length)];
             game.move(move);
             board.position(game.fen());
-            addLog(`Máy: ${move}`);
+            addLog(`Máy (Auto): ${move}`);
             updateGameStatus();
         }
 
-        function startMatchmaking(mode) {
-            if (mode === 'PVE') {
+        function requestMatch(m) {
+            if (m === 'PVE') {
                 myColor = Math.random() > 0.5 ? 'w' : 'b';
-                showModal("Thông báo", "Đã vào trận với máy. Chúc bạn may mắn!", [
-                    {text: "Vào trận", click: "initGame('PVE')"}
+                showCriticalError("Thông báo", `Đã vào trận với Máy. Bạn cầm quân ${myColor==='w'?'Trắng':'Đen'}.`, [
+                    {text: "Vào trận", click: "startGame('PVE')"}
                 ]);
             } else {
-                let waitTime = 60;
-                showModal("Ghép trận", `Đang tìm đối thủ... (${waitTime}s)`, []);
-                
-                matchmakingInterval = setInterval(() => {
-                    waitTime--;
-                    $('#ce-msg').text(`Đang tìm đối thủ... (${waitTime}s)`);
-                    
-                    // Giả lập tìm thấy đối thủ sau 3 giây để test
-                    if (waitTime === 57) {
-                        clearInterval(matchmakingInterval);
+                let wait = 60;
+                showCriticalError("Ghép trận", `Đang tìm đối thủ... (${wait}s)`, []);
+                let si = setInterval(() => {
+                    wait--;
+                    $('#ce-msg').text(`Đang tìm đối thủ... (${wait}s)`);
+                    if (wait === 57) { // Giả lập tìm thấy
+                        clearInterval(si);
                         myColor = Math.random() > 0.5 ? 'w' : 'b';
-                        showModal("Thành công", "Ghép phòng thành công, đang tiến vào trò chơi.", [
-                            {text: "Bắt đầu", click: "initGame('PVP')"}
+                        showCriticalError("Thành công", "Ghép phòng thành công, đang tiến vào trò chơi.", [
+                            {text: "Bắt đầu", click: "startGame('PVP')"}
                         ]);
                     }
-
-                    if (waitTime <= 0) {
-                        clearInterval(matchmakingInterval);
-                        showModal("Lỗi ghép trận", "Không đủ người để vào phòng, bạn có muốn chuyển qua chế độ người với máy không?", [
-                            {text: "Đồng ý", click: "startMatchmaking('PVE')"},
+                    if (wait <= 0) {
+                        clearInterval(si);
+                        showCriticalError("Lỗi", "Không đủ người để vào phòng, bạn có muốn chơi với máy không?", [
+                            {text: "Đồng ý", click: "requestMatch('PVE')"},
                             {text: "Hủy", click: "location.reload()"}
                         ]);
                     }
@@ -132,12 +135,12 @@
             }
         }
 
-        function initGame(mode) {
-            closeModal();
-            currentMode = mode;
+        function startGame(m) {
+            currentMode = m;
+            $('#modal-overlay').hide();
+            $('#custom-modal').hide();
             $('#main-layout').css('display', 'flex');
             
-            // Khởi tạo bàn cờ với màu ngẫu nhiên
             board = Chessboard('board', {
                 position: 'start',
                 draggable: false,
@@ -145,31 +148,23 @@
                 pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
             });
 
-            // Vẽ lại overlay click cho đúng hướng
-            initOverlay();
             game.reset();
-            addLog(`Hệ thống: Vào trận ${mode}. Bạn cầm quân ${myColor === 'w' ? 'Trắng' : 'Đen'}.`);
-            
-            if (myColor === 'b' && mode === 'PVE') {
-                setTimeout(makeAiMove, 500);
-            } else {
-                startTimer();
-            }
+            afkCount = { w: 0, b: 0 };
+            initOverlay();
+            if (myColor === 'b' && m === 'PVE') setTimeout(makeAiMove, 600);
+            else startTimer();
         }
 
         function initOverlay() {
-            const overlay = $('#click-overlay'); overlay.empty();
-            const ranks = myColor === 'w' ? [8,7,6,5,4,3,2,1] : [1,2,3,4,5,6,7,8];
-            const files = myColor === 'w' ? ['a','b','c','d','e','f','g','h'] : ['h','g','f','e','d','c','b','a'];
-            
-            ranks.forEach(r => {
-                files.forEach(f => {
-                    overlay.append(`<div class="click-cell" id="overlay-${f+r}" data-sq="${f+r}"></div>`);
-                });
-            });
+            const overlay = $('#click-overlay').empty();
+            const cells = [];
+            for(let i=1; i<=8; i++) ['a','b','c','d','e','f','g','h'].forEach(c => cells.push(c+i));
+            if (myColor === 'w') cells.reverse(); 
+            cells.forEach(sq => overlay.append(`<div class="click-cell" id="overlay-${sq}" data-sq="${sq}"></div>`));
         }
 
         $(document).on('click', '.click-cell', function() {
+            if (currentMode === 'PVP' && game.turn() !== myColor) return;
             const sq = $(this).data('sq');
             if (selectedSquare) {
                 let move = game.move({ from: selectedSquare, to: sq, promotion: 'q' });
@@ -187,7 +182,7 @@
             if (p && p.color === game.turn()) {
                 selectedSquare = sq; clearBorders();
                 $(`#overlay-${sq}`).addClass('border-selected');
-                game.moves({square:sq, verbose:true}).forEach(m => $(`#overlay-${m.to}`).addClass('border-hint'));
+                game.moves({square:sq, verbose:true}).forEach(m=>$(`#overlay-${m.to}`).addClass('border-hint'));
             } else { selectedSquare = null; clearBorders(); }
         }
 
@@ -195,26 +190,22 @@
             $('#status').text("LƯỢT ĐI: " + (game.turn()==='w'?"TRẮNG":"ĐEN"));
             if (game.game_over()) {
                 clearInterval(timerInterval);
-                let winner = game.turn() === 'w' ? "ĐEN" : "TRẮNG";
-                showModal("Kết thúc", `QUÂN ${winner} THẮNG!`, [{text: "Chơi lại", click: "confirmExit()"}]);
+                showCriticalError("Kết thúc", "Trận đấu đã kết thúc!", [{text: "Chơi lại", click: "location.reload()"}]);
             } else startTimer();
         }
 
         function clearBorders() { $('.click-cell').removeClass('border-selected border-hint'); }
-        function closeModal() { $('#modal-overlay, #custom-modal').hide(); }
-        function showModal(t, m, btns) {
+        function showCriticalError(t,m,b) {
             $('#ce-title').text(t); $('#ce-msg').text(m);
-            $('#ce-buttons').html(btns.map(b => `<button class="ce-btn" onclick="${b.click}">${b.text}</button>`).join(''));
+            $('#ce-buttons').html(b.map(x=>`<button class="ce-btn" onclick="${x.click}">${x.text}</button>`).join(''));
             $('#modal-overlay, #custom-modal').show();
         }
-
         function confirmExit() {
             clearInterval(timerInterval);
             $('#main-layout').hide();
-            $('#logs').html("> Trò chơi đã sẵn sàng.");
-            showModal("Hệ thống Chess Master", "Vui lòng chọn chế độ để bắt đầu", [
-                {text: "NGƯỜI VS MÁY", click: "startMatchmaking('PVE')"},
-                {text: "NGƯỜI VS NGƯỜI", click: "startMatchmaking('PVP')"}
+            showCriticalError("Hệ thống Chess", "Vui lòng chọn chế độ để bắt đầu", [
+                {text: "NGƯỜI VS MÁY", click: "requestMatch('PVE')"},
+                {text: "NGƯỜI VS NGƯỜI", click: "requestMatch('PVP')"}
             ]);
         }
     </script>
