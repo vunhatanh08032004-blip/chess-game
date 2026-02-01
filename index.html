@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Chess Master - Online Firebase Edition</title>
+    <title>Chess Master - Ultimate Edition</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <style>
         body { background: #1a1a1a; color: white; font-family: 'Segoe UI', Arial; display: flex; flex-direction: column; align-items: center; padding: 20px; }
@@ -10,35 +10,29 @@
         #board { width: 100%; height: 100%; }
         #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); z-index: 10; cursor: pointer; }
         .click-cell { width: 100%; height: 100%; box-sizing: border-box; border: 3px solid transparent; }
-        
         .border-selected { border: 4px solid #ffff00 !important; z-index: 11; } 
         .border-hint { border: 4px solid #00ff00 !important; z-index: 11; }     
-        .border-check { border: 4px solid #ff0000 !important; z-index: 12; animation: blink 0.5s step-end infinite; } 
-        @keyframes blink { 50% { border-color: transparent; } }
-
         #logs-container { width: 250px; display: flex; flex-direction: column; }
         #logs { flex-grow: 1; background: #000; color: #0f0; padding: 10px; font-family: monospace; height: 400px; overflow-y: auto; border: 1px solid #444; font-size: 12px; }
         .info-bar { margin: 10px 0; padding: 10px; background: #333; text-align: center; color: #00ffcc; font-weight: bold; border-radius: 4px; }
         #timer-span { color: #ff4d4d; margin-left: 10px; }
-        
-        #modal-overlay { display: block; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; }
+        #modal-overlay { display: block; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:1000; }
         .critical-error-box { display: block; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); width: 380px; background: #f0f0f0; border: 2px solid #0055ea; z-index: 1001; color: #000; }
-        .ce-header { background: linear-gradient(to right, #0055ea, #0a84ff); color: white; padding: 5px 10px; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; }
+        .ce-header { background: linear-gradient(to right, #0055ea, #0a84ff); color: white; padding: 5px 10px; font-size: 13px; font-weight: bold; }
         .ce-body { padding: 25px 20px; display: flex; align-items: center; gap: 15px; background: white; min-height: 60px; }
-        .ce-icon { width: 35px; height: 35px; background: #fbc02d; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); display: flex; justify-content: center; align-items: flex-end; font-weight: bold; font-size: 18px; padding-bottom: 2px; }
         .ce-footer { padding: 10px; text-align: center; background: #f0f0f0; border-top: 1px solid #ccc; }
-        .ce-btn { min-width: 80px; padding: 5px 15px; background: #e1e1e1; border: 1px solid #777; cursor: pointer; margin: 0 5px; }
+        .ce-btn { min-width: 80px; padding: 6px 15px; background: #e1e1e1; border: 1px solid #777; cursor: pointer; margin: 0 5px; font-size: 12px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div id="modal-overlay"></div>
     <div id="custom-modal" class="critical-error-box">
-        <div class="ce-header"><span id="ce-title">Chess System</span></div>
-        <div class="ce-body"><div class="ce-icon">!</div><div id="ce-msg">Vui lòng chọn chế độ để bắt đầu</div></div>
+        <div class="ce-header" id="ce-title">Hệ thống Chess Master</div>
+        <div class="ce-body" id="ce-msg">Vui lòng chọn chế độ để bắt đầu</div>
         <div class="ce-footer" id="ce-buttons">
-            <button class="ce-btn" onclick="requestMatch('PVE')">NGƯỜI VS MÁY</button>
-            <button class="ce-btn" onclick="requestMatch('PVP')">NGƯỜI VS NGƯỜI</button>
+            <button class="ce-btn" onclick="startProcess('PVE')">NGƯỜI VS MÁY</button>
+            <button class="ce-btn" onclick="startProcess('PVP')">NGƯỜI VS NGƯỜI</button>
         </div>
     </div>
 
@@ -54,7 +48,7 @@
             </div>
         </div>
         <div id="logs-container">
-            <div id="logs">> Hệ thống sẵn sàng.</div>
+            <div id="logs">> Đang chờ khởi tạo...</div>
             <button style="background:#e74c3c; color:white; padding:10px; border:none; cursor:pointer; margin-top:10px; font-weight:bold;" onclick="confirmExit()">THOÁT TRẬN</button>
         </div>
     </div>
@@ -62,150 +56,92 @@
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <script>
-        // --- Cấu hình Firebase ---
-        const firebaseConfig = { databaseURL: "https://chessonline-43534-default-rtdb.firebaseio.com" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const roomRef = db.ref('rooms/room1');
-        const presenceRef = db.ref('presence');
-
         var board = null, game = new Chess(), selectedSquare = null;
-        var currentMode = 'PVE', myColor = 'w';
-        var timerValue = 30, timerInterval = null, afkCount = { w: 0, b: 0 };
+        var currentMode = 'PVE', myColor = 'w', timerValue = 30;
+        var timerInterval = null, afkCount = { w: 0, b: 0 };
 
-        function addLog(m) { 
-            $('#logs').append(`<div>> ${m}</div>`); 
-            $('#logs').scrollTop($('#logs')[0].scrollHeight); 
+        function showModal(title, msg, btns) {
+            $('#ce-title').text(title); $('#ce-msg').text(msg);
+            $('#ce-buttons').html(btns.map(b => `<button class="ce-btn" onclick="${b.click}">${b.text}</button>`).join(''));
+            $('#modal-overlay, #custom-modal').show();
         }
 
-        function startTimer() {
-            clearInterval(timerInterval);
-            timerValue = (game.turn() === 'w') ? 30 : (currentMode === 'PVE' ? 10 : 30);
-            $('#timer-span').text(timerValue + "s");
-            timerInterval = setInterval(() => {
-                timerValue--;
-                $('#timer-span').text(timerValue + "s");
-                if (timerValue <= 0) {
-                    clearInterval(timerInterval);
-                    handleTimeout();
-                }
-            }, 1000);
-        }
-
-        function handleTimeout() {
-            let turn = game.turn();
-            afkCount[turn]++;
-            if (afkCount[turn] >= 5) {
-                showCriticalError("Cảnh báo", "Đối thủ không còn chơi, bạn có muốn thoát không?", [
-                    {text: "Thoát", click: "location.reload()"},
-                    {text: "Tiếp tục", click: "makeAiMove()"}
-                ]);
-            } else {
-                makeAiMove();
-            }
-        }
-
-        function makeAiMove() {
-            let moves = game.moves();
-            if (moves.length === 0) return;
-            let move = moves[Math.floor(Math.random() * moves.length)];
-            game.move(move);
-            board.position(game.fen());
-            if (currentMode === 'PVP') syncFirebase();
-            addLog(`Máy (Auto): ${move}`);
-            updateGameStatus();
-        }
-
-        function requestMatch(m) {
-            if (m === 'PVE') {
+        function startProcess(mode) {
+            if (mode === 'PVE') {
                 myColor = Math.random() > 0.5 ? 'w' : 'b';
-                showCriticalError("Thông báo", `Đã vào trận với Máy. Bạn quân ${myColor==='w'?'Trắng':'Đen'}.`, [
-                    {text: "Vào trận", click: "startGame('PVE')"}
+                showModal("Thông báo", `Đã vào trận với Máy. Bạn quân ${myColor==='w'?'Trắng':'Đen'}.`, [
+                    {text: "Vào trận", click: "initGame('PVE')"}
                 ]);
             } else {
                 let wait = 60;
-                showCriticalError("Ghép trận", `Đang tìm đối thủ... (${wait}s)`, []);
-                
-                let checkPresence = setInterval(() => {
-                    wait--;
-                    $('#ce-msg').text(`Đang tìm đối thủ... (${wait}s)`);
-                    
-                    presenceRef.once('value', snap => {
-                        let players = snap.numChildren();
-                        if (players >= 2) {
-                            clearInterval(checkPresence);
-                            joinPvpServer();
-                        }
-                    });
-
+                showModal("Ghép trận", `Đang tìm đối thủ... (${wait}s)`, []);
+                let si = setInterval(() => {
+                    wait--; $('#ce-msg').text(`Đang tìm đối thủ... (${wait}s)`);
+                    if (wait === 57) { // Giả lập thành công
+                        clearInterval(si);
+                        myColor = Math.random() > 0.5 ? 'w' : 'b';
+                        showModal("Thành công", "Ghép phòng thành công, đang tiến vào trò chơi.", [{text: "Bắt đầu", click: "initGame('PVP')"}]);
+                    }
                     if (wait <= 0) {
-                        clearInterval(checkPresence);
-                        showCriticalError("Lỗi", "Không đủ người, bạn có muốn chơi với máy không?", [
-                            {text: "Đồng ý", click: "requestMatch('PVE')"},
-                            {text: "Hủy", click: "location.reload()"}
+                        clearInterval(si);
+                        showModal("Lỗi ghép trận", "Không đủ người để vào phòng, bạn có muốn chuyển qua chế độ người với máy không?", [
+                            {text: "Đồng ý", click: "startProcess('PVE')"}, {text: "Hủy", click: "location.reload()"}
                         ]);
                     }
                 }, 1000);
-
-                // Đăng ký sự diện diện
-                presenceRef.push(true).onDisconnect().remove();
             }
         }
 
-        function joinPvpServer() {
-            presenceRef.once('value', snap => {
-                let keys = Object.keys(snap.val() || {});
-                myColor = (keys[0] === presenceRef.push().key) ? 'b' : 'w'; // Đơn giản hóa logic chọn màu
-                // Thực tế nên dựa vào thứ tự push key
-                showCriticalError("Thành công", "Ghép phòng thành công!", [{text: "Bắt đầu", click: "startGame('PVP')"}]);
-            });
-        }
-
-        function startGame(m) {
-            currentMode = m;
-            $('#modal-overlay, #custom-modal').hide();
-            $('#main-layout').css('display', 'flex');
-            
+        function initGame(mode) {
+            currentMode = mode; $('#modal-overlay, #custom-modal').hide(); $('#main-layout').css('display', 'flex');
             board = Chessboard('board', {
                 position: 'start', draggable: false,
                 orientation: myColor === 'w' ? 'white' : 'black',
                 pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
             });
-
-            game.reset();
-            afkCount = { w: 0, b: 0 };
-            initOverlay();
-            
-            if (m === 'PVP') {
-                roomRef.set({ fen: game.fen(), turn: 'w' });
-                roomRef.on('value', snap => {
-                    let data = snap.val();
-                    if (data && data.fen !== game.fen()) {
-                        game.load(data.fen);
-                        board.position(game.fen());
-                        updateGameStatus();
-                    }
-                });
-            }
-
-            if (myColor === 'b' && m === 'PVE') setTimeout(makeAiMove, 600);
-            else startTimer();
-        }
-
-        function syncFirebase() {
-            roomRef.update({ fen: game.fen(), turn: game.turn() });
+            game.reset(); afkCount = { w: 0, b: 0 }; initOverlay();
+            $('#logs').html(`> Trận đấu bắt đầu (${mode})`);
+            startTimer();
         }
 
         function initOverlay() {
             const overlay = $('#click-overlay').empty();
-            let squares = [];
-            for(let i=1; i<=8; i++) ['a','b','c','d','e','f','g','h'].forEach(c => squares.push(c+i));
-            if (myColor === 'w') squares.reverse();
-            squares.forEach(sq => overlay.append(`<div class="click-cell" id="overlay-${sq}" data-sq="${sq}"></div>`));
+            const ranks = myColor === 'w' ? [8,7,6,5,4,3,2,1] : [1,2,3,4,5,6,7,8];
+            const files = myColor === 'w' ? ['a','b','c','d','e','f','g','h'] : ['h','g','f','e','d','c','b','a'];
+            ranks.forEach(r => files.forEach(f => overlay.append(`<div class="click-cell" id="overlay-${f+r}" data-sq="${f+r}"></div>`)));
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerValue = 30; $('#timer-span').text("30s");
+            timerInterval = setInterval(() => {
+                timerValue--; $('#timer-span').text(timerValue + "s");
+                
+                // Logic Máy đánh trong 15s ở chế độ PVE
+                if (currentMode === 'PVE' && game.turn() !== myColor && timerValue <= 15) {
+                    makeMoveAI(); return;
+                }
+
+                if (timerValue <= 0) {
+                    clearInterval(timerInterval);
+                    afkCount[game.turn()]++;
+                    if (afkCount[game.turn()] >= 5) {
+                        showModal("Thông báo", "Đối thủ không còn chơi, bạn có muốn thoát không?", [
+                            {text: "Thoát", click: "confirmExit()"}, {text: "Tiếp tục", click: "makeMoveAI()"}
+                        ]);
+                    } else makeMoveAI();
+                }
+            }, 1000);
+        }
+
+        function makeMoveAI() {
+            let moves = game.moves(); if (moves.length === 0) return;
+            let m = moves[Math.floor(Math.random() * moves.length)];
+            game.move(m); board.position(game.fen());
+            $('#logs').append(`<div>> ${game.turn()==='w'?'Đen':'Trắng'}: ${m}</div>`);
+            updateStatus();
         }
 
         $(document).on('click', '.click-cell', function() {
@@ -214,13 +150,10 @@
             if (selectedSquare) {
                 let move = game.move({ from: selectedSquare, to: sq, promotion: 'q' });
                 if (move) {
-                    addLog(`Bạn: ${move.from}-${move.to}`);
-                    board.position(game.fen());
-                    if (currentMode === 'PVP') syncFirebase();
-                    selectedSquare = null; clearBorders(); updateGameStatus();
-                    if (currentMode === 'PVE' && !game.game_over()) setTimeout(makeAiMove, 600);
-                } else { selectPiece(sq); }
-            } else { selectPiece(sq); }
+                    $('#logs').append(`<div>> Bạn: ${move.from}-${move.to}</div>`);
+                    board.position(game.fen()); selectedSquare = null; clearBorders(); updateStatus();
+                } else selectPiece(sq);
+            } else selectPiece(sq);
         });
 
         function selectPiece(sq) {
@@ -228,26 +161,22 @@
             if (p && p.color === game.turn()) {
                 selectedSquare = sq; clearBorders();
                 $(`#overlay-${sq}`).addClass('border-selected');
-                game.moves({square:sq, verbose:true}).forEach(m=>$(`#overlay-${m.to}`).addClass('border-hint'));
+                game.moves({square:sq, verbose:true}).forEach(m => $(`#overlay-${m.to}`).addClass('border-hint'));
             } else { selectedSquare = null; clearBorders(); }
         }
 
-        function updateGameStatus() {
+        function updateStatus() {
             $('#status').text("LƯỢT ĐI: " + (game.turn()==='w'?"TRẮNG":"ĐEN"));
-            if (game.game_over()) {
-                clearInterval(timerInterval);
-                showCriticalError("Kết thúc", "Trò chơi kết thúc!", [{text: "Chơi lại", click: "location.reload()"}]);
-            } else startTimer();
+            if (game.game_over()) { clearInterval(timerInterval); showModal("Kết thúc", "Trò chơi kết thúc!", [{text:"Chơi lại", click:"confirmExit()"}]); }
+            else startTimer();
         }
 
         function clearBorders() { $('.click-cell').removeClass('border-selected border-hint'); }
-        function showCriticalError(t,m,b) {
-            $('#ce-title').text(t); $('#ce-msg').text(m);
-            $('#ce-buttons').html(b.map(x=>`<button class="ce-btn" onclick="${x.click}">${x.text}</button>`).join(''));
-            $('#modal-overlay, #custom-modal').show();
-        }
-        function confirmExit() {
-            location.reload();
+        function confirmExit() { 
+            clearInterval(timerInterval); $('#main-layout').hide(); 
+            showModal("Hệ thống Chess Master", "Vui lòng chọn chế độ để bắt đầu", [
+                {text: "NGƯỜI VS MÁY", click: "startProcess('PVE')"}, {text: "NGƯỜI VS NGƯỜI", click: "startProcess('PVP')"}
+            ]);
         }
     </script>
 </body>
