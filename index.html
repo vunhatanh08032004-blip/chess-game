@@ -1,48 +1,79 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Chess Master - Full Alerts</title>
+    <title>Chess Master - Fixed Click UI</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <style>
-        body { background: #1a1a1a; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        #game-container { display: flex; gap: 20px; background: #262626; padding: 20px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-        #board { width: 450px; }
+        body { background: #1a1a1a; color: white; font-family: 'Segoe UI', Arial; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        #game-outer { position: relative; width: 450px; height: 450px; }
+        #board { width: 100%; height: 100%; }
+        
+        /* Lớp phủ bắt sự kiện click - Cực kỳ quan trọng để sửa lỗi click */
+        #click-overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+            z-index: 10; cursor: pointer;
+        }
+        .click-cell { width: 100%; height: 100%; border: 1px solid transparent; box-sizing: border-box; }
+        .click-cell:hover { background: rgba(255, 255, 255, 0.1); }
+
+        /* Highlight lớp dưới */
         .highlight-selected { background: rgba(255, 255, 0, 0.5) !important; }
-        .highlight-hint { background: rgba(0, 255, 0, 0.3) !important; }
+        .highlight-hint { position: relative; }
+        .highlight-hint::after { 
+            content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 15px; height: 15px; background: rgba(0, 255, 0, 0.5); border-radius: 50%;
+        }
         .highlight-check { background: rgba(255, 0, 0, 0.7) !important; }
-        .info-bar { margin: 10px 0; padding: 10px; background: #333; width: 100%; text-align: center; color: #00ffcc; border-radius: 5px; }
-        .controls { margin-bottom: 15px; display: flex; gap: 10px; }
-        button { padding: 10px 20px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; }
-        .btn-mode { background: #444; color: #ccc; }
-        .btn-mode.active { background: #007acc; color: white; }
-        .btn-exit { background: #e74c3c; color: white; width: 100%; margin-top: 10px; }
-        #modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:100; }
-        #custom-modal { display: none; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:white; color:black; padding:30px; border-radius:10px; text-align:center; z-index:101; border: 4px solid #27ae60; }
+
+        .info-bar { margin: 15px 0; padding: 10px; background: #333; width: 450px; text-align: center; color: #00ffcc; border-radius: 5px; font-weight: bold; }
+        
+        /* Khung thông báo kiểu Critical Error */
+        #modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; }
+        .error-box { 
+            display: none; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); 
+            width: 320px; background: #f0f0f0; border: 2px solid #0078d7; z-index: 1001; color: #000;
+        }
+        .err-header { background: #0078d7; color: white; padding: 5px 10px; font-size: 14px; font-weight: bold; }
+        .err-body { padding: 20px; display: flex; align-items: center; gap: 15px; }
+        .err-icon { width: 32px; height: 32px; background: #ffcc00; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); display: flex; justify-content: center; align-items: flex-end; font-weight: bold; padding-bottom: 2px; }
+        .err-footer { padding: 10px; text-align: center; background: #e1e1e1; }
+        button.win-btn { padding: 5px 20px; background: #dcdcdc; border: 1px solid #707070; cursor: pointer; }
+
+        .controls { margin-bottom: 10px; }
+        button.mode-btn { padding: 10px 15px; background: #444; color: #ccc; border: none; cursor: pointer; border-radius: 4px; }
+        button.mode-btn.active { background: #007acc; color: white; }
     </style>
 </head>
 <body>
 
     <div id="modal-overlay"></div>
-    <div id="custom-modal">
-        <h1 id="modal-title">CHIẾN THẮNG!</h1>
-        <p id="modal-msg"></p>
-        <button onclick="location.reload()" style="background:#27ae60; color:white; padding:10px 30px;">CHỌN LẠI CHẾ ĐỘ</button>
+    <div id="custom-modal" class="error-box">
+        <div class="err-header">Critical Error</div>
+        <div class="err-body">
+            <div class="err-icon">!</div>
+            <div id="modal-msg">Nội dung thông báo</div>
+        </div>
+        <div class="err-footer">
+            <button class="win-btn" onclick="location.reload()">OK</button>
+        </div>
     </div>
 
     <div class="controls">
-        <button id="pve-btn" class="btn-mode active" onclick="setGameMode('PVE')">NGƯỜI VS MÁY</button>
-        <button id="pvp-btn" class="btn-mode" onclick="setGameMode('PVP')">NGƯỜI VS NGƯỜI</button>
+        <button id="pve-btn" class="mode-btn active" onclick="setMode('PVE')">NGƯỜI VS MÁY</button>
+        <button id="pvp-btn" class="mode-btn" onclick="setMode('PVP')">NGƯỜI VS NGƯỜI</button>
     </div>
 
-    <div id="game-container">
-        <div>
-            <div id="board"></div>
-            <div class="info-bar" id="status">LƯỢT ĐI: TRẮNG</div>
-            <button class="btn-exit" onclick="confirmExit()">THOÁT & RESET</button>
-        </div>
-        <div id="logs" style="width:250px; background:black; color:#0f0; padding:10px; font-family:monospace; height:450px; overflow-y:auto; font-size:12px;">
-            > Chào mừng bạn!
-        </div>
+    <div id="game-outer">
+        <div id="board"></div>
+        <div id="click-overlay"></div>
+    </div>
+
+    <div class="info-bar" id="status">LƯỢT ĐI: TRẮNG</div>
+    <button style="background:#e74c3c; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;" onclick="confirmExit()">THOÁT TRẬN</button>
+    
+    <div id="logs" style="width:450px; background:black; color:#0f0; padding:10px; font-family:monospace; height:100px; overflow-y:auto; margin-top:10px; border-radius:5px; font-size:12px;">
+        > Hệ thống đã khởi động.
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
@@ -52,7 +83,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <script>
-        // Cấu hình Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyCJRXRhYXBbc0DiwZg3KXnySGJ63z4Ow2s",
             databaseURL: "https://chessonline-43534-default-rtdb.firebaseio.com",
@@ -65,48 +95,41 @@
 
         var board = null;
         var game = new Chess();
-        var selectedSquare = null;
         var currentMode = 'PVE';
+        var selectedSquare = null;
         var myId = Math.random().toString(36).substr(2, 9);
 
-        // 1. Thông báo khi chọn chế độ
-        function setGameMode(m) {
-            let modeName = m === 'PVE' ? "Người vs Máy" : "Người vs Người";
-            alert("Bạn đã chọn chế độ: " + modeName);
-            currentMode = m;
-            location.reload(); 
+        // Khởi tạo lưới click 8x8
+        function initClickOverlay() {
+            const overlay = $('#click-overlay');
+            overlay.empty();
+            const squares = ['a8','b8','c8','d8','e8','f8','g8','h8',
+                           'a7','b7','c7','d7','e7','f7','g7','h7',
+                           'a6','b6','c6','d6','e6','f6','g6','h6',
+                           'a5','b5','c5','d5','e5','f5','g5','h5',
+                           'a4','b4','c4','d4','e4','f4','g4','h4',
+                           'a3','b3','c3','d3','e3','f3','g3','h3',
+                           'a2','b2','c2','d2','e2','f2','g2','h2',
+                           'a1','b1','c1','d1','e1','f1','g1','h1'];
+            
+            squares.forEach(sq => {
+                overlay.append(`<div class="click-cell" data-sq="${sq}"></div>`);
+            });
         }
 
-        // 2. Thông báo xác nhận thoát (Yes/No)
-        function confirmExit() {
-            let text = "Bạn có chắc chắn muốn thoát không?\nKết quả trận đấu sẽ bị hủy.";
-            if (confirm(text) == true) {
-                playersRef.child(myId).remove();
-                gameRef.remove();
-                location.reload();
-            } else {
-                // Người dùng chọn No, không làm gì cả
-            }
-        }
-
-        // Theo dõi số lượng người chơi (Thông báo đủ người)
-        playersRef.child(myId).set(true);
-        playersRef.child(myId).onDisconnect().remove();
-        playersRef.on('value', snap => {
-            if (currentMode === 'PVP' && snap.numChildren() === 2) {
-                alert("Đã đủ 2 người chơi! Trận đấu bắt đầu.");
-                addLog("HỆ THỐNG: Đã kết nối đối thủ.");
-            }
+        $(document).on('click', '.click-cell', function() {
+            const square = $(this).data('sq');
+            handleMoveRequest(square);
         });
 
-        function onSquareClick(square) {
+        function handleMoveRequest(square) {
             if (selectedSquare) {
                 var move = game.move({ from: selectedSquare, to: square, promotion: 'q' });
                 if (move === null) {
                     var piece = game.get(square);
                     if (piece && piece.color === game.turn()) {
                         selectedSquare = square;
-                        highlightMoves(square);
+                        renderHighlights(square);
                     } else {
                         selectedSquare = null;
                         clearHighlights();
@@ -115,7 +138,7 @@
                     selectedSquare = null;
                     clearHighlights();
                     board.position(game.fen());
-                    checkStatus();
+                    updateUI();
                     if (currentMode === 'PVE' && !game.game_over()) setTimeout(makeAiMove, 500);
                     if (currentMode === 'PVP') gameRef.set({ fen: game.fen() });
                 }
@@ -123,16 +146,16 @@
                 var piece = game.get(square);
                 if (piece && piece.color === game.turn()) {
                     selectedSquare = square;
-                    highlightMoves(square);
+                    renderHighlights(square);
                 }
             }
         }
 
-        function highlightMoves(square) {
+        function renderHighlights(square) {
             clearHighlights();
-            $(`#board .square-${square}`).addClass('highlight-selected');
+            $(`.square-${square}`).addClass('highlight-selected');
             game.moves({ square: square, verbose: true }).forEach(m => {
-                $(`#board .square-${m.to}`).addClass('highlight-hint');
+                $(`.square-${m.to}`).addClass('highlight-hint');
             });
         }
 
@@ -140,34 +163,47 @@
             $('.square-55d6').removeClass('highlight-selected highlight-hint highlight-check');
         }
 
-        function checkStatus() {
+        function updateUI() {
             var turn = game.turn() === 'w' ? "TRẮNG" : "ĐEN";
             $('#status').text("LƯỢT ĐI: " + turn);
             if (game.in_check()) {
-                var kingPos = findKing(game.turn());
-                $(`#board .square-${kingPos}`).addClass('highlight-check');
+                highlightKing(game.turn());
             }
             if (game.in_checkmate()) {
-                var winner = game.turn() === 'w' ? "QUÂN ĐEN" : "QUÂN TRẮNG";
-                $('#modal-msg').text(winner + " ĐÃ ĂN ĐƯỢC TƯỚNG!");
-                $('#modal-overlay, #custom-modal').show();
+                showModal("Critical Error", (game.turn() === 'w' ? "QUÂN ĐEN" : "QUÂN TRẮNG") + " ĐÃ ĂN TƯỚNG!");
             }
         }
 
-        function makeAiMove() {
-            var moves = game.moves();
-            if (moves.length === 0) return;
-            game.move(moves[Math.floor(Math.random() * moves.length)]);
-            board.position(game.fen());
-            checkStatus();
+        function showModal(title, msg) {
+            $('.err-header').text(title);
+            $('#modal-msg').text(msg);
+            $('#modal-overlay, #custom-modal').show();
         }
 
-        function findKing(color) {
-            var b = game.board();
-            for (var i=0; i<8; i++)
-                for (var j=0; j<8; j++)
-                    if (b[i][j] && b[i][j].type === 'k' && b[i][j].color === color)
-                        return String.fromCharCode(97 + j) + (8 - i);
+        function setMode(m) {
+            currentMode = m;
+            $('.mode-btn').removeClass('active');
+            $(`#${m.toLowerCase()}-btn`).addClass('active');
+            addLog("CHẾ ĐỘ: " + (m === 'PVE' ? "NGƯỜI VS MÁY" : "NGƯỜI VS NGƯỜI"));
+            if (m === 'PVP') checkMatch();
+            else resetBoard();
+        }
+
+        function checkMatch() {
+            playersRef.once('value', snap => {
+                if (snap.numChildren() >= 2) {
+                    showModal("Success", "Đã ghép được đội! Trận đấu bắt đầu.");
+                } else {
+                    showModal("Critical Error", "Không đủ người chơi. Tự động chuyển về PVE.");
+                    setMode('PVE');
+                }
+            });
+        }
+
+        function confirmExit() {
+            if (confirm("Bạn có chắc chắn muốn thoát? (Yes/No)")) {
+                location.reload();
+            }
         }
 
         function addLog(msg) {
@@ -175,23 +211,15 @@
             $('#logs').scrollTop($('#logs')[0].scrollHeight);
         }
 
+        // Khởi tạo bàn cờ
         board = Chessboard('board', {
             position: 'start',
             draggable: false,
             pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
         });
 
-        $(document).on('click', '.square-55d6', function() {
-            onSquareClick($(this).attr('data-square'));
-        });
-
-        gameRef.on('value', snap => {
-            if (currentMode === 'PVP' && snap.val()) {
-                game.load(snap.val().fen);
-                board.position(game.fen());
-                checkStatus();
-            }
-        });
+        initClickOverlay();
+        updateUI();
     </script>
 </body>
 </html>
