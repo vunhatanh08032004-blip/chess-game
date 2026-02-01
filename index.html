@@ -1,83 +1,82 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Chess Master Pro - Professional Edition</title>
+    <title>Chess Master - Final Version</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <style>
-        body { background: #1a1a1a; color: white; font-family: 'Segoe UI', Arial; display: flex; flex-direction: column; align-items: center; padding: 20px; overflow-x: hidden; }
-        #main-layout { display: flex; gap: 20px; background: #262626; padding: 20px; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; }
+        body { background: #1a1a1a; color: white; font-family: 'Segoe UI', Arial; display: flex; flex-direction: column; align-items: center; padding: 20px; }
         
-        /* Hiệu ứng mờ toàn bộ khi chưa bắt đầu hoặc đang có thông báo */
-        .is-blurred { filter: blur(12px); opacity: 0.2; pointer-events: none; user-select: none; transition: all 0.4s; }
-        .locked-controls { pointer-events: none; opacity: 0.5; }
+        /* Hiệu ứng mờ tuyệt đối theo yêu cầu */
+        #game-view-container { transition: filter 0.4s, opacity 0.4s; filter: blur(15px); opacity: 0.2; pointer-events: none; }
+        .is-active { filter: blur(0) !important; opacity: 1 !important; pointer-events: auto !important; }
 
+        #main-layout { display: flex; gap: 20px; background: #262626; padding: 20px; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
         #game-outer { position: relative; width: 450px; height: 450px; border: 2px solid #333; }
         #board { width: 100%; height: 100%; }
+        
+        /* Overlay click */
         #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); z-index: 100; cursor: pointer; }
         .click-cell { width: 100%; height: 100%; box-sizing: border-box; border: 3px solid transparent; }
-        
         .border-selected { border: 4px solid #ffff00 !important; z-index: 110; } 
         .border-hint { border: 4px solid #00ff00 !important; z-index: 110; }     
         
         #logs-container { width: 250px; display: flex; flex-direction: column; }
         #logs { flex-grow: 1; background: #000; color: #0f0; padding: 10px; font-family: monospace; height: 400px; overflow-y: auto; border: 1px solid #444; font-size: 12px; }
-        .info-bar { margin: 10px 0; padding: 10px; background: #111; text-align: center; color: #00ffcc; font-weight: bold; border-radius: 4px; display: flex; justify-content: center; align-items: center; min-height: 25px; }
-        #timer-span { color: #ff4d4d; margin-left: 10px; display: none; font-size: 1.2em; }
         
-        /* Modal căn giữa tuyệt đối */
-        #modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:3000; }
-        .critical-error-box { display: none; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); width: 420px; background: #f0f0f0; border: 2px solid #0055ea; z-index: 3001; color: #000; }
-        .ce-header { background: linear-gradient(to right, #0055ea, #0a84ff); color: white; padding: 10px; font-size: 14px; font-weight: bold; display: flex; justify-content: space-between; }
-        .ce-body { padding: 40px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; text-align: center; }
-        .ce-msg-text { font-size: 16px; font-weight: bold; margin-top: 15px; line-height: 1.5; }
-        .ce-icon { width: 45px; height: 45px; background: #fbc02d; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); display: flex; justify-content: center; align-items: flex-end; font-weight: bold; font-size: 24px; padding-bottom: 3px; }
-        .ce-footer { padding: 20px; text-align: center; background: #f0f0f0; border-top: 1px solid #ccc; display: flex; justify-content: center; gap: 15px; }
-        .ce-btn { min-width: 110px; padding: 10px; background: #e1e1e1; border: 1px solid #777; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        .ce-btn:hover { background: #d0d0d0; border-color: #000; }
+        .info-bar { margin: 10px 0; padding: 10px; background: #111; text-align: center; color: #00ffcc; font-weight: bold; border-radius: 4px; }
+        #timer-span { color: #ff4d4d; margin-left: 10px; display: none; }
+        
+        /* Modal căn giữa hệ thống */
+        #modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:2000; }
+        .system-modal { display: none; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); width: 400px; background: #f0f0f0; border: 2px solid #0055ea; z-index: 2001; color: #000; }
+        .modal-header { background: #0055ea; color: white; padding: 8px 12px; font-weight: bold; }
+        .modal-body { padding: 30px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .modal-icon { width: 40px; height: 40px; background: #fbc02d; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); margin-bottom: 15px; display: flex; justify-content: center; align-items: flex-end; font-weight: bold; font-size: 20px; }
+        .modal-footer { padding: 15px; background: #eee; display: flex; justify-content: center; gap: 10px; border-top: 1px solid #ccc; }
+        .modal-btn { padding: 8px 20px; cursor: pointer; font-weight: bold; min-width: 90px; }
 
-        .controls { margin-bottom: 20px; z-index: 10; }
-        .mode-btn { padding: 12px 30px; background: #444; color: #ccc; border: none; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.3s; }
-        .mode-btn:hover { background: #555; }
+        .top-controls { margin-bottom: 20px; }
+        .mode-btn { padding: 10px 25px; cursor: pointer; font-weight: bold; background: #444; color: #ccc; border: none; }
         .mode-btn.active { background: #007acc; color: white; }
     </style>
 </head>
 <body>
 
-    <div id="modal-overlay"></div>
-    <div id="custom-modal" class="critical-error-box">
-        <div class="ce-header"><span id="ce-title">HỆ THỐNG</span></div>
-        <div class="ce-body">
-            <div class="ce-icon">!</div>
-            <div id="ce-msg" class="ce-msg-text">Đang xử lý...</div>
-        </div>
-        <div class="ce-footer" id="ce-buttons"></div>
+    <div class="top-controls" id="nav">
+        <button class="mode-btn" id="btn-pve" onclick="requestGame('PVE')">NGƯỜI VS MÁY</button>
+        <button class="mode-btn" id="btn-pvp" onclick="requestGame('PVP')">NGƯỜI VS NGƯỜI</button>
     </div>
 
-    <div id="top-nav" class="controls">
-        <button id="pve-btn" class="mode-btn" onclick="requestChangeMode('PVE')">NGƯỜI VS MÁY</button>
-        <button id="pvp-btn" class="mode-btn" onclick="requestChangeMode('PVP')">NGƯỜI VS NGƯỜI</button>
-    </div>
-
-    <div id="main-layout">
-        <div id="game-area" class="is-blurred" style="display: flex; gap: 20px;">
+    <div id="game-view-container">
+        <div id="main-layout">
             <div>
                 <div id="game-outer">
                     <div id="board"></div>
                     <div id="click-overlay"></div>
                 </div>
                 <div class="info-bar">
-                    <span id="status">LƯỢT ĐI: TRẮNG</span>
+                    <span id="turn-display">LƯỢT ĐI: TRẮNG</span>
                     <span id="timer-span">30s</span>
                 </div>
             </div>
-            
             <div id="side-panel">
                 <div id="logs-container">
-                    <div id="logs">> Hệ thống đã sẵn sàng.</div>
-                    <button id="exit-btn" style="background:#e74c3c; color:white; padding:12px; border:none; cursor:pointer; margin-top:10px; font-weight:bold; width: 100%;" onclick="confirmExit()">THOÁT TRẬN</button>
+                    <div id="logs">> Đang chờ...</div>
+                    <button onclick="confirmExit()" style="margin-top:10px; background:#e74c3c; color:white; border:none; padding:12px; cursor:pointer; font-weight:bold; width:100%;">THOÁT</button>
                 </div>
             </div>
         </div>
+    </div>
+
+    <div id="modal-overlay"></div>
+    <div id="custom-modal" class="system-modal">
+        <div class="modal-header">Thông báo hệ thống</div>
+        <div class="modal-body">
+            <div class="modal-icon">!</div>
+            <div id="modal-msg" style="font-weight:bold;"></div>
+        </div>
+        <div class="modal-footer" id="modal-btns"></div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
@@ -85,190 +84,145 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
 
     <script>
-        var board = null, game = new Chess(), selectedSquare = null;
-        var currentMode = null, myColor = 'w', timerValue = 30, timerInterval = null;
-        var isSearching = false, gamePaused = false;
+        var board = null, game = new Chess(), selectedSq = null;
+        var mode = '', myColor = 'w', timer = 30, timerInt = null, isPaused = false;
 
-        function initClickOverlay() {
+        function drawClickGrid() {
             $('#click-overlay').empty();
             let squares = [];
-            for (let i = 8; i >= 1; i--) {
-                for (let j = 0; j < 8; j++) squares.push(String.fromCharCode(97 + j) + i);
-            }
+            for (let i = 8; i >= 1; i--) for (let j = 0; j < 8; j++) squares.push(String.fromCharCode(97 + j) + i);
             if (myColor === 'b') squares.reverse();
-            squares.forEach(sq => $('#click-overlay').append(`<div class="click-cell" id="overlay-${sq}" data-sq="${sq}"></div>`));
+            squares.forEach(s => $('#click-overlay').append(`<div class="click-cell" id="sq-${s}" data-sq="${s}"></div>`));
         }
 
-        function addLog(m) { 
-            $('#logs').append(`<div>> ${m}</div>`); 
-            $('#logs').scrollTop($('#logs')[0].scrollHeight); 
+        function triggerModal(msg, btns) {
+            isPaused = true; 
+            $('#modal-msg').html(msg);
+            $('#modal-btns').html(btns.map(b => `<button class="modal-btn" onclick="${b.fn}">${b.txt}</button>`).join(''));
+            $('#modal-overlay, #custom-modal').show();
+            $('#nav').css('pointer-events', 'none'); 
         }
 
-        function startTimer() {
-            if (gamePaused) return; // Không chạy nếu đang tạm dừng
-            clearInterval(timerInterval);
-            timerValue = 30;
-            $('#timer-span').show().text(timerValue + "s");
-            timerInterval = setInterval(() => {
-                if (!gamePaused) {
-                    timerValue--;
-                    $('#timer-span').text(timerValue + "s");
-                    if (timerValue <= 0) {
-                        clearInterval(timerInterval);
-                        autoMove();
-                    }
+        function closeSystemModal() {
+            $('#modal-overlay, #custom-modal').hide();
+            $('#nav').css('pointer-events', 'auto');
+            if (mode) { isPaused = false; startCountdown(); }
+        }
+
+        function startCountdown() {
+            clearInterval(timerInt);
+            timer = 30;
+            $('#timer-span').show().text(timer + "s");
+            timerInt = setInterval(() => {
+                if (!isPaused) {
+                    timer--;
+                    $('#timer-span').text(timer + "s");
+                    if (timer <= 0) { clearInterval(timerInt); aiMove(true); }
                 }
             }, 1000);
         }
 
-        function autoMove() {
+        function aiMove(instant = false) {
             if (game.game_over()) return;
-            addLog("Hết giờ! Máy tự động thực hiện nước đi.");
-            makeAiMove(true); 
-        }
-
-        function makeAiMove(isInstant = false) {
-            if (game.game_over()) return;
-            // Máy suy nghĩ ngẫu nhiên từ 1 đến 15 giây
-            let thinkingDelay = isInstant ? 500 : (Math.floor(Math.random() * 14000) + 1000);
-            
+            // Yêu cầu mới: Máy đi từ 1-10 giây
+            let delay = instant ? 500 : (Math.floor(Math.random() * 9000) + 1000);
             setTimeout(() => {
-                if (gamePaused) { // Nếu đang pause thì đợi đến khi hết pause mới đi
-                    let checkPause = setInterval(() => {
-                        if (!gamePaused) {
-                            clearInterval(checkPause);
-                            executeMove();
-                        }
-                    }, 500);
-                } else {
-                    executeMove();
-                }
-            }, thinkingDelay);
+                if (isPaused) { 
+                    let wait = setInterval(() => { if(!isPaused){ clearInterval(wait); execAi(); }}, 500); 
+                } else { execAi(); }
+            }, delay);
         }
 
-        function executeMove() {
+        function execAi() {
             let moves = game.moves();
-            let move = moves[Math.floor(Math.random() * moves.length)];
-            game.move(move);
+            if (moves.length === 0) return;
+            let m = moves[Math.floor(Math.random() * moves.length)];
+            game.move(m);
             board.position(game.fen());
-            addLog(`Đối thủ: ${move}`);
-            updateStatus();
+            addLog(`Đối thủ: ${m}`);
+            refreshStatus();
         }
 
         $(document).on('click', '.click-cell', function() {
-            if (game.turn() !== myColor || gamePaused) return;
+            if (game.turn() !== myColor || isPaused) return;
             let sq = $(this).data('sq');
-            if (selectedSquare) {
-                let move = game.move({ from: selectedSquare, to: sq, promotion: 'q' });
-                if (move) {
+            if (selectedSq) {
+                let m = game.move({ from: selectedSq, to: sq, promotion: 'q' });
+                if (m) {
                     board.position(game.fen());
-                    addLog(`Bạn: ${move.from}-${move.to}`);
-                    selectedSquare = null; clearBorders(); updateStatus();
-                    if (currentMode === 'PVE') makeAiMove();
-                } else { trySelect(sq); }
-            } else { trySelect(sq); }
+                    addLog(`Bạn: ${m.from}-${m.to}`);
+                    selectedSq = null; $('.click-cell').removeClass('border-selected border-hint');
+                    refreshStatus();
+                    if (mode === 'PVE') aiMove();
+                } else { highlight(sq); }
+            } else { highlight(sq); }
         });
 
-        function trySelect(sq) {
+        function highlight(sq) {
             let p = game.get(sq);
             if (p && p.color === myColor && p.color === game.turn()) {
-                selectedSquare = sq; drawBorders(sq);
+                selectedSq = sq;
+                $('.click-cell').removeClass('border-selected border-hint');
+                $(`#sq-${sq}`).addClass('border-selected');
+                game.moves({square: sq, verbose: true}).forEach(m => $(`#sq-${m.to}`).addClass('border-hint'));
             }
         }
 
-        function updateStatus() {
-            $('#status').text("LƯỢT ĐI: " + (game.turn()==='w'?"TRẮNG":"ĐEN"));
+        function refreshStatus() {
+            let turn = game.turn() === 'w' ? "TRẮNG" : "ĐEN";
+            $('#turn-display').text("LƯỢT ĐI: " + turn);
             if (game.game_over()) {
-                clearInterval(timerInterval);
-                showModal("TRẬN ĐẤU KẾT THÚC", "Cảm ơn bạn đã chơi!", [{text: "Chơi lại", click: "resetToLobby()"}]);
-            } else startTimer();
+                clearInterval(timerInt);
+                triggerModal("TRẬN ĐẤU KẾT THÚC!", [{txt: "Chơi lại", fn: "location.reload()"}]);
+            } else startCountdown();
         }
 
-        function requestChangeMode(m) {
+        function requestGame(m) {
             if (m === 'PVP') {
-                isSearching = true;
-                let waitTime = 60;
-                showModal("TÌM TRẬN", `Đang tìm đối thủ... (${waitTime}s)`, []);
-                
-                let searchClock = setInterval(() => {
-                    waitTime--;
-                    $('#ce-msg').text(`Đang tìm đối thủ... (${waitTime}s)`);
-                    if (waitTime <= 0 || !isSearching) {
-                        clearInterval(searchClock);
-                        if(isSearching) showModal("LỖI", "Không tìm thấy đối thủ trực tuyến.", [{text: "Đóng", click: "closeModal()"}]);
-                    }
-                    if (waitTime === 57) { // Tìm thấy trận sau 3s
-                        clearInterval(searchClock);
-                        isSearching = false;
-                        showModal("THÀNH CÔNG", "Đã tìm thấy đối thủ! Bạn đã sẵn sàng chưa?", [
-                            {text: "Vào trận", click: "beginGame('PVP')"},
-                            {text: "Thoát", click: "closeModal()"}
-                        ]);
+                let s = 60;
+                triggerModal(`Đang tìm đối thủ... (<span id="mm">${s}</span>s)`, []);
+                let mmt = setInterval(() => {
+                    s--; $('#mm').text(s);
+                    if (s === 57) { 
+                        clearInterval(mmt);
+                        triggerModal("Đã ghép trận thành công!", [{txt: "Vào trận", fn: "initGame('PVP')"}]);
                     }
                 }, 1000);
             } else {
-                showModal("THÔNG BÁO", "Bạn đã vào trận đấu với Máy AI.", [{text: "Bắt đầu ngay", click: "beginGame('PVE')"}]);
+                triggerModal("Đã vào trận với Máy AI!", [{txt: "Bắt đầu", fn: "initGame('PVE')"}]);
             }
         }
 
-        function beginGame(m) {
-            closeModal();
-            currentMode = m;
+        function initGame(m) {
+            closeSystemModal();
+            mode = m;
             game.reset();
+            
+            // Random người đi trước (Trắng hoặc Đen)
             myColor = Math.random() > 0.5 ? 'w' : 'b';
             
-            $('#game-area').removeClass('is-blurred');
-            $('#top-nav').addClass('locked-controls'); // Khóa nút chọn chế độ khi đang trong trận
+            $('#game-view-container').addClass('is-active');
             $('.mode-btn').removeClass('active');
-            $(`#${m.toLowerCase()}-btn`).addClass('active');
+            $(`#btn-${m.toLowerCase()}`).addClass('active');
             
             board.orientation(myColor === 'w' ? 'white' : 'black');
             board.start();
-            initClickOverlay();
+            drawClickGrid();
+            addLog(`Bạn cầm quân ${myColor === 'w' ? 'TRẮNG' : 'ĐEN'}.`);
             
-            addLog(`Trận đấu bắt đầu. Bạn là quân ${myColor === 'w' ? 'TRẮNG' : 'ĐEN'}.`);
-            updateStatus();
-            if (myColor === 'b' && m === 'PVE') makeAiMove();
+            refreshStatus();
+            // Nếu bạn là quân Đen, Máy (Trắng) sẽ đi trước
+            if (myColor === 'b' && m === 'PVE') aiMove();
         }
 
-        function resetToLobby() {
-            location.reload(); 
-        }
+        function addLog(m) { $('#logs').append(`<div>> ${m}</div>`).scrollTop($('#logs')[0].scrollHeight); }
 
         function confirmExit() {
-            showModal("XÁC NHẬN", "Mọi tiến trình sẽ bị hủy. Bạn có chắc muốn thoát?", [
-                {text:"Thoát ngay", click:"resetToLobby()"}, 
-                {text:"Ở lại", click:"closeModal()"}
+            triggerModal("Dừng lại! Bạn có chắc muốn thoát không?", [
+                {txt: "Thoát", fn: "location.reload()"},
+                {txt: "Tiếp tục", fn: "closeSystemModal()"}
             ]);
         }
-
-        // HÀM QUAN TRỌNG: HIỆN MODAL VÀ DỪNG MỌI THỨ
-        function showModal(title, msg, buttons) { 
-            gamePaused = true; // Dừng logic đếm ngược và di chuyển
-            $('#ce-title').text(title); 
-            $('#ce-msg').text(msg); 
-            $('#ce-buttons').html(buttons.map(b => `<button class="ce-btn" onclick="${b.click}">${b.text}</button>`).join('')); 
-            
-            $('#modal-overlay, #custom-modal').show(); 
-            $('#game-area').addClass('is-blurred'); // Làm mờ bàn cờ và nhật ký khi hiện thông báo
-        }
-
-        function closeModal() { 
-            $('#modal-overlay, #custom-modal').hide(); 
-            if (currentMode) {
-                $('#game-area').removeClass('is-blurred');
-                gamePaused = false; 
-                startTimer(); // Chạy lại đồng hồ từ nơi đã dừng
-            }
-            isSearching = false;
-        }
-
-        function drawBorders(s) { 
-            clearBorders(); 
-            $(`#overlay-${s}`).addClass('border-selected'); 
-            game.moves({square:s, verbose:true}).forEach(m => $(`#overlay-${m.to}`).addClass('border-hint'));
-        }
-        function clearBorders() { $('.click-cell').removeClass('border-selected border-hint'); }
 
         board = Chessboard('board', { position: 'start', draggable: false, pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png' });
     </script>
