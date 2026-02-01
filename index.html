@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Chess Master - Matchmaking Edition</title>
+    <title>Chess Master Pro - Professional Edition</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <style>
-        body { background: #1a1a1a; color: white; font-family: 'Segoe UI', Arial; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        body { background: #1a1a1a; color: white; font-family: 'Segoe UI', Arial; display: flex; flex-direction: column; align-items: center; padding: 20px; overflow-x: hidden; }
         #main-layout { display: flex; gap: 20px; background: #262626; padding: 20px; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; }
         
-        /* Hiệu ứng mờ toàn bộ khi chưa bắt đầu */
-        .is-blurred { filter: blur(8px); opacity: 0.3; pointer-events: none; user-select: none; }
-        
+        /* Hiệu ứng mờ toàn bộ khi chưa bắt đầu hoặc đang có thông báo */
+        .is-blurred { filter: blur(12px); opacity: 0.2; pointer-events: none; user-select: none; transition: all 0.4s; }
+        .locked-controls { pointer-events: none; opacity: 0.5; }
+
         #game-outer { position: relative; width: 450px; height: 450px; border: 2px solid #333; }
         #board { width: 100%; height: 100%; }
         #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); z-index: 100; cursor: pointer; }
@@ -20,40 +21,39 @@
         
         #logs-container { width: 250px; display: flex; flex-direction: column; }
         #logs { flex-grow: 1; background: #000; color: #0f0; padding: 10px; font-family: monospace; height: 400px; overflow-y: auto; border: 1px solid #444; font-size: 12px; }
-        .info-bar { margin: 10px 0; padding: 10px; background: #1a1a1a; text-align: center; color: #00ffcc; font-weight: bold; border-radius: 4px; min-height: 20px; }
-        #timer-span { color: #ff4d4d; margin-left: 10px; display: none; }
+        .info-bar { margin: 10px 0; padding: 10px; background: #111; text-align: center; color: #00ffcc; font-weight: bold; border-radius: 4px; display: flex; justify-content: center; align-items: center; min-height: 25px; }
+        #timer-span { color: #ff4d4d; margin-left: 10px; display: none; font-size: 1.2em; }
         
-        /* Modal và căn giữa chữ */
-        #modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2000; }
-        .critical-error-box { display: none; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); width: 400px; background: #f0f0f0; border: 2px solid #0055ea; z-index: 2001; color: #000; box-shadow: 0 0 20px rgba(0,0,0,1); }
-        .ce-header { background: linear-gradient(to right, #0055ea, #0a84ff); color: white; padding: 8px 12px; font-size: 14px; font-weight: bold; display: flex; justify-content: space-between; }
-        .ce-body { padding: 30px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; background: white; text-align: center; font-size: 15px; font-weight: 500; }
-        .ce-icon { width: 40px; height: 40px; background: #fbc02d; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); display: flex; justify-content: center; align-items: flex-end; font-weight: bold; font-size: 20px; padding-bottom: 2px; }
-        .ce-footer { padding: 15px; text-align: center; background: #f0f0f0; border-top: 1px solid #ccc; display: flex; justify-content: center; gap: 10px; }
-        .ce-btn { min-width: 100px; padding: 8px 20px; background: #e1e1e1; border: 1px solid #777; cursor: pointer; font-weight: bold; }
-        .ce-btn:hover { background: #d0d0d0; }
+        /* Modal căn giữa tuyệt đối */
+        #modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:3000; }
+        .critical-error-box { display: none; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); width: 420px; background: #f0f0f0; border: 2px solid #0055ea; z-index: 3001; color: #000; }
+        .ce-header { background: linear-gradient(to right, #0055ea, #0a84ff); color: white; padding: 10px; font-size: 14px; font-weight: bold; display: flex; justify-content: space-between; }
+        .ce-body { padding: 40px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; text-align: center; }
+        .ce-msg-text { font-size: 16px; font-weight: bold; margin-top: 15px; line-height: 1.5; }
+        .ce-icon { width: 45px; height: 45px; background: #fbc02d; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); display: flex; justify-content: center; align-items: flex-end; font-weight: bold; font-size: 24px; padding-bottom: 3px; }
+        .ce-footer { padding: 20px; text-align: center; background: #f0f0f0; border-top: 1px solid #ccc; display: flex; justify-content: center; gap: 15px; }
+        .ce-btn { min-width: 110px; padding: 10px; background: #e1e1e1; border: 1px solid #777; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .ce-btn:hover { background: #d0d0d0; border-color: #000; }
 
-        .controls { margin-bottom: 15px; transition: filter 0.3s; }
-        .mode-btn { padding: 10px 25px; background: #444; color: #ccc; border: none; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .controls { margin-bottom: 20px; z-index: 10; }
+        .mode-btn { padding: 12px 30px; background: #444; color: #ccc; border: none; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.3s; }
+        .mode-btn:hover { background: #555; }
         .mode-btn.active { background: #007acc; color: white; }
-        
-        /* Khóa toàn bộ tương tác khi có modal */
-        .locked { pointer-events: none; filter: grayscale(0.5); }
     </style>
 </head>
 <body>
 
     <div id="modal-overlay"></div>
     <div id="custom-modal" class="critical-error-box">
-        <div class="ce-header"><span id="ce-title">Hệ thống</span><span style="cursor:pointer" onclick="cancelSearch()">×</span></div>
+        <div class="ce-header"><span id="ce-title">HỆ THỐNG</span></div>
         <div class="ce-body">
             <div class="ce-icon">!</div>
-            <div id="ce-msg">Đang xử lý...</div>
+            <div id="ce-msg" class="ce-msg-text">Đang xử lý...</div>
         </div>
         <div class="ce-footer" id="ce-buttons"></div>
     </div>
 
-    <div id="top-controls" class="controls">
+    <div id="top-nav" class="controls">
         <button id="pve-btn" class="mode-btn" onclick="requestChangeMode('PVE')">NGƯỜI VS MÁY</button>
         <button id="pvp-btn" class="mode-btn" onclick="requestChangeMode('PVP')">NGƯỜI VS NGƯỜI</button>
     </div>
@@ -73,8 +73,8 @@
             
             <div id="side-panel">
                 <div id="logs-container">
-                    <div id="logs">> Vui lòng chọn chế độ chơi.</div>
-                    <button id="exit-btn" style="background:#e74c3c; color:white; padding:12px; border:none; cursor:pointer; margin-top:10px; font-weight:bold;" onclick="confirmExit()">THOÁT TRẬN</button>
+                    <div id="logs">> Hệ thống đã sẵn sàng.</div>
+                    <button id="exit-btn" style="background:#e74c3c; color:white; padding:12px; border:none; cursor:pointer; margin-top:10px; font-weight:bold; width: 100%;" onclick="confirmExit()">THOÁT TRẬN</button>
                 </div>
             </div>
         </div>
@@ -87,7 +87,7 @@
     <script>
         var board = null, game = new Chess(), selectedSquare = null;
         var currentMode = null, myColor = 'w', timerValue = 30, timerInterval = null;
-        var afkCount = 0, isSearching = false;
+        var isSearching = false, gamePaused = false;
 
         function initClickOverlay() {
             $('#click-overlay').empty();
@@ -105,52 +105,62 @@
         }
 
         function startTimer() {
+            if (gamePaused) return; // Không chạy nếu đang tạm dừng
             clearInterval(timerInterval);
             timerValue = 30;
             $('#timer-span').show().text(timerValue + "s");
             timerInterval = setInterval(() => {
-                timerValue--;
-                $('#timer-span').text(timerValue + "s");
-                if (timerValue <= 0) {
-                    clearInterval(timerInterval);
-                    handleAFK();
+                if (!gamePaused) {
+                    timerValue--;
+                    $('#timer-span').text(timerValue + "s");
+                    if (timerValue <= 0) {
+                        clearInterval(timerInterval);
+                        autoMove();
+                    }
                 }
             }, 1000);
         }
 
-        function handleAFK() {
-            afkCount++;
-            if (afkCount >= 5) {
-                showModal("Thông báo", "Đối thủ đã quá lâu không đánh. Bạn muốn thoát chứ?", [
-                    {text: "Thoát", click: "resetToLobby()"},
-                    {text: "Tiếp tục", click: "closeModal(); startTimer();"}
-                ]);
-            } else {
-                makeAiMove(true); 
-            }
+        function autoMove() {
+            if (game.game_over()) return;
+            addLog("Hết giờ! Máy tự động thực hiện nước đi.");
+            makeAiMove(true); 
         }
 
         function makeAiMove(isInstant = false) {
             if (game.game_over()) return;
-            let moves = game.moves();
-            // Máy suy nghĩ 5-10s (hiển thị 30s)
-            let delay = isInstant ? 500 : (Math.floor(Math.random() * 5001) + 5000);
+            // Máy suy nghĩ ngẫu nhiên từ 1 đến 15 giây
+            let thinkingDelay = isInstant ? 500 : (Math.floor(Math.random() * 14000) + 1000);
+            
             setTimeout(() => {
-                let move = moves[Math.floor(Math.random() * moves.length)];
-                game.move(move);
-                board.position(game.fen());
-                addLog(`Đối thủ: ${move}`);
-                updateStatus();
-            }, delay);
+                if (gamePaused) { // Nếu đang pause thì đợi đến khi hết pause mới đi
+                    let checkPause = setInterval(() => {
+                        if (!gamePaused) {
+                            clearInterval(checkPause);
+                            executeMove();
+                        }
+                    }, 500);
+                } else {
+                    executeMove();
+                }
+            }, thinkingDelay);
+        }
+
+        function executeMove() {
+            let moves = game.moves();
+            let move = moves[Math.floor(Math.random() * moves.length)];
+            game.move(move);
+            board.position(game.fen());
+            addLog(`Đối thủ: ${move}`);
+            updateStatus();
         }
 
         $(document).on('click', '.click-cell', function() {
-            if (game.turn() !== myColor) return;
+            if (game.turn() !== myColor || gamePaused) return;
             let sq = $(this).data('sq');
             if (selectedSquare) {
                 let move = game.move({ from: selectedSquare, to: sq, promotion: 'q' });
                 if (move) {
-                    afkCount = 0;
                     board.position(game.fen());
                     addLog(`Bạn: ${move.from}-${move.to}`);
                     selectedSquare = null; clearBorders(); updateStatus();
@@ -170,31 +180,34 @@
             $('#status').text("LƯỢT ĐI: " + (game.turn()==='w'?"TRẮNG":"ĐEN"));
             if (game.game_over()) {
                 clearInterval(timerInterval);
-                showModal("Kết thúc", "TRẬN ĐẤU ĐÃ HOÀN THÀNH!", [{text: "Chơi lại", click: "resetToLobby()"}]);
+                showModal("TRẬN ĐẤU KẾT THÚC", "Cảm ơn bạn đã chơi!", [{text: "Chơi lại", click: "resetToLobby()"}]);
             } else startTimer();
         }
 
         function requestChangeMode(m) {
             if (m === 'PVP') {
                 isSearching = true;
-                let sec = 60;
-                showModal("Ghép trận", `Đang tìm đối thủ trực tuyến... (${sec}s)`, []);
+                let waitTime = 60;
+                showModal("TÌM TRẬN", `Đang tìm đối thủ... (${waitTime}s)`, []);
                 
-                let searchInterval = setInterval(() => {
-                    sec--;
-                    $('#ce-msg').text(`Đang tìm đối thủ trực tuyến... (${sec}s)`);
-                    if (sec <= 0 || !isSearching) {
-                        clearInterval(searchInterval);
-                        if(isSearching) showModal("Lỗi", "Không tìm thấy người chơi nào.", [{text: "Đóng", click: "closeModal()"}]);
+                let searchClock = setInterval(() => {
+                    waitTime--;
+                    $('#ce-msg').text(`Đang tìm đối thủ... (${waitTime}s)`);
+                    if (waitTime <= 0 || !isSearching) {
+                        clearInterval(searchClock);
+                        if(isSearching) showModal("LỖI", "Không tìm thấy đối thủ trực tuyến.", [{text: "Đóng", click: "closeModal()"}]);
                     }
-                    if (sec === 57) { // Giả lập tìm thấy
-                        clearInterval(searchInterval);
+                    if (waitTime === 57) { // Tìm thấy trận sau 3s
+                        clearInterval(searchClock);
                         isSearching = false;
-                        showModal("Thành công", "Đã tìm thấy đối thủ! Bạn sẵn sàng chưa?", [{text: "Vào trận", click: "beginGame('PVP')"}]);
+                        showModal("THÀNH CÔNG", "Đã tìm thấy đối thủ! Bạn đã sẵn sàng chưa?", [
+                            {text: "Vào trận", click: "beginGame('PVP')"},
+                            {text: "Thoát", click: "closeModal()"}
+                        ]);
                     }
                 }, 1000);
             } else {
-                showModal("Thông báo", "Đã vào trận với Máy!", [{text: "Bắt đầu", click: "beginGame('PVE')"}]);
+                showModal("THÔNG BÁO", "Bạn đã vào trận đấu với Máy AI.", [{text: "Bắt đầu ngay", click: "beginGame('PVE')"}]);
             }
         }
 
@@ -202,11 +215,10 @@
             closeModal();
             currentMode = m;
             game.reset();
-            afkCount = 0;
             myColor = Math.random() > 0.5 ? 'w' : 'b';
             
             $('#game-area').removeClass('is-blurred');
-            $('#exit-btn').css('visibility', 'visible');
+            $('#top-nav').addClass('locked-controls'); // Khóa nút chọn chế độ khi đang trong trận
             $('.mode-btn').removeClass('active');
             $(`#${m.toLowerCase()}-btn`).addClass('active');
             
@@ -214,7 +226,7 @@
             board.start();
             initClickOverlay();
             
-            addLog(`Trận đấu bắt đầu. Bạn cầm quân ${myColor === 'w' ? 'TRẮNG' : 'ĐEN'}.`);
+            addLog(`Trận đấu bắt đầu. Bạn là quân ${myColor === 'w' ? 'TRẮNG' : 'ĐEN'}.`);
             updateStatus();
             if (myColor === 'b' && m === 'PVE') makeAiMove();
         }
@@ -223,16 +235,32 @@
             location.reload(); 
         }
 
-        function cancelSearch() {
-            isSearching = false;
-            closeModal();
+        function confirmExit() {
+            showModal("XÁC NHẬN", "Mọi tiến trình sẽ bị hủy. Bạn có chắc muốn thoát?", [
+                {text:"Thoát ngay", click:"resetToLobby()"}, 
+                {text:"Ở lại", click:"closeModal()"}
+            ]);
         }
 
-        function confirmExit() {
-            showModal("Xác nhận", "Bạn có chắc muốn thoát và hủy trận đấu này không?", [
-                {text:"Có", click:"resetToLobby()"}, 
-                {text:"Không", click:"closeModal()"}
-            ]);
+        // HÀM QUAN TRỌNG: HIỆN MODAL VÀ DỪNG MỌI THỨ
+        function showModal(title, msg, buttons) { 
+            gamePaused = true; // Dừng logic đếm ngược và di chuyển
+            $('#ce-title').text(title); 
+            $('#ce-msg').text(msg); 
+            $('#ce-buttons').html(buttons.map(b => `<button class="ce-btn" onclick="${b.click}">${b.text}</button>`).join('')); 
+            
+            $('#modal-overlay, #custom-modal').show(); 
+            $('#game-area').addClass('is-blurred'); // Làm mờ bàn cờ và nhật ký khi hiện thông báo
+        }
+
+        function closeModal() { 
+            $('#modal-overlay, #custom-modal').hide(); 
+            if (currentMode) {
+                $('#game-area').removeClass('is-blurred');
+                gamePaused = false; 
+                startTimer(); // Chạy lại đồng hồ từ nơi đã dừng
+            }
+            isSearching = false;
         }
 
         function drawBorders(s) { 
@@ -241,21 +269,6 @@
             game.moves({square:s, verbose:true}).forEach(m => $(`#overlay-${m.to}`).addClass('border-hint'));
         }
         function clearBorders() { $('.click-cell').removeClass('border-selected border-hint'); }
-
-        // Hàm hiện Modal căn giữa và khóa tương tác
-        function showModal(t, m, b) { 
-            $('#ce-title').text(t); 
-            $('#ce-msg').text(m); 
-            $('#ce-buttons').html(b.map(x=>`<button class="ce-btn" onclick="${x.click}">${x.text}</button>`).join('')); 
-            $('#modal-overlay, #custom-modal').show(); 
-            $('#top-controls').addClass('locked'); // Tạm ngưng nút chọn chế độ
-        }
-
-        function closeModal() { 
-            $('#modal-overlay, #custom-modal').hide(); 
-            $('#top-controls').removeClass('locked'); 
-            isSearching = false; 
-        }
 
         board = Chessboard('board', { position: 'start', draggable: false, pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png' });
     </script>
