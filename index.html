@@ -1,385 +1,225 @@
 <!DOCTYPE html>
-
 <html>
-
 <head>
-
-    <title>Chess Master - Matchmaking Edition</title>
-
+    <title>Chess Master - Pro Edition</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
-
     <style>
-
         body { background: #1a1a1a; color: white; font-family: 'Segoe UI', Arial; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-
-        #main-layout { display: flex; gap: 20px; background: #262626; padding: 20px; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-
+        #main-layout { display: flex; gap: 20px; background: #262626; padding: 20px; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); opacity: 0.3; pointer-events: none; transition: 0.3s; }
         #game-outer { position: relative; width: 450px; height: 450px; border: 2px solid #555; }
-
         #board { width: 100%; height: 100%; }
-
         #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); z-index: 10; cursor: pointer; }
-
         .click-cell { width: 100%; height: 100%; box-sizing: border-box; border: 3px solid transparent; }
-
-        
-
         .border-selected { border: 4px solid #ffff00 !important; z-index: 11; } 
-
         .border-hint { border: 4px solid #00ff00 !important; z-index: 11; }     
-
-        .border-check { border: 4px solid #ff0000 !important; z-index: 12; animation: blink 0.5s step-end infinite; } 
-
-        @keyframes blink { 50% { border-color: transparent; } }
-
-
-
         #logs-container { width: 250px; display: flex; flex-direction: column; }
-
         #logs { flex-grow: 1; background: #000; color: #0f0; padding: 10px; font-family: monospace; height: 400px; overflow-y: auto; border: 1px solid #444; font-size: 12px; }
-
         .info-bar { margin: 10px 0; padding: 10px; background: #333; text-align: center; color: #00ffcc; font-weight: bold; border-radius: 4px; }
-
         #timer-span { color: #ff4d4d; margin-left: 10px; }
-
         
-
-        #modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000; }
-
-        .critical-error-box { display: none; position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); width: 380px; background: #f0f0f0; border: 2px solid #0055ea; z-index: 1001; color: #000; }
-
-        .ce-header { background: linear-gradient(to right, #0055ea, #0a84ff); color: white; padding: 5px 10px; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; }
-
-        .ce-body { padding: 25px 20px; display: flex; align-items: center; gap: 15px; background: white; }
-
-        .ce-icon { width: 35px; height: 35px; background: #fbc02d; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); display: flex; justify-content: center; align-items: flex-end; font-weight: bold; font-size: 18px; padding-bottom: 2px; }
-
-        .ce-footer { padding: 10px; text-align: center; background: #f0f0f0; border-top: 1px solid #ccc; }
-
-        .ce-btn { min-width: 80px; padding: 5px 15px; background: #e1e1e1; border: 1px solid #777; cursor: pointer; margin: 0 5px; }
-
-
-
-        .controls { margin-bottom: 15px; }
-
-        .mode-btn { padding: 10px 20px; background: #444; color: #ccc; border: none; cursor: pointer; margin-right: 5px; font-weight: bold; }
-
-        .mode-btn.active { background: #007acc; color: white; }
-
+        /* Modal giao diện theo hình */
+        #modal-overlay { display: flex; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content: center; align-items: center; }
+        .critical-error-box { width: 400px; background: #262626; border: 1px solid #444; color: white; border-radius: 5px; overflow: hidden; }
+        .ce-header { background: #333; padding: 10px; font-size: 14px; font-weight: bold; display: flex; justify-content: space-between; border-bottom: 1px solid #444; }
+        .ce-body { padding: 30px 20px; text-align: center; font-size: 16px; color: #00ffcc; }
+        .ce-footer { padding: 15px; text-align: center; background: #1a1a1a; }
+        .ce-btn { min-width: 120px; padding: 10px; border: none; cursor: pointer; margin: 5px; font-weight: bold; text-transform: uppercase; transition: 0.2s; }
+        .btn-blue { background: #007acc; color: white; }
+        .btn-gray { background: #444; color: #ccc; }
+        .btn-red { background: #e74c3c; color: white; }
+        .btn-blue:hover { background: #005f99; }
     </style>
-
 </head>
-
 <body>
 
-
-
-    <div id="modal-overlay"></div>
-
-    <div id="custom-modal" class="critical-error-box">
-
-        <div class="ce-header"><span id="ce-title">Thông báo hệ thống</span><span style="cursor:pointer" onclick="closeModal()">×</span></div>
-
-        <div class="ce-body"><div class="ce-icon">!</div><div id="ce-msg">Đang xử lý...</div></div>
-
-        <div class="ce-footer" id="ce-buttons"></div>
-
+    <div id="modal-overlay">
+        <div id="custom-modal" class="critical-error-box">
+            <div class="ce-header"><span id="ce-title">CHESS MASTER</span></div>
+            <div class="ce-body" id="ce-msg">Chọn chế độ chơi để bắt đầu</div>
+            <div class="ce-footer" id="ce-buttons">
+                <button class="ce-btn btn-blue" onclick="prepareMatch('PVE')">NGƯỜI VS MÁY</button>
+                <button class="ce-btn btn-gray" onclick="prepareMatch('PVP')">NGƯỜI VS NGƯỜI</button>
+            </div>
+        </div>
     </div>
-
-
-
-    <div class="controls">
-
-        <button id="pve-btn" class="mode-btn active" onclick="requestChangeMode('PVE')">NGƯỜI VS MÁY</button>
-
-        <button id="pvp-btn" class="mode-btn" onclick="requestChangeMode('PVP')">NGƯỜI VS NGƯỜI</button>
-
-    </div>
-
-
 
     <div id="main-layout">
-
         <div>
-
             <div id="game-outer">
-
                 <div id="board"></div>
-
                 <div id="click-overlay"></div>
-
             </div>
-
             <div class="info-bar">
-
                 <span id="status">LƯỢT ĐI: TRẮNG</span>
-
                 <span id="timer-span">30s</span>
-
             </div>
-
         </div>
-
-        <div id="side-panel">
-
-            <div id="logs-container">
-
-                <div id="logs">> Trò chơi đã sẵn sàng.</div>
-
-                <button style="background:#e74c3c; color:white; padding:10px; border:none; cursor:pointer; margin-top:10px;" onclick="confirmExit()">THOÁT TRẬN</button>
-
-            </div>
-
+        <div id="logs-container">
+            <div id="logs">> Hệ thống sẵn sàng.</div>
+            <button class="ce-btn btn-red" style="width: 100%; margin-top: 10px;" onclick="confirmExit()">THOÁT TRẬN</button>
         </div>
-
     </div>
 
-
-
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
-
-
     <script>
+        var board = null, game = new Chess(), selectedSquare = null;
+        var currentMode = 'PVE', myColor = 'w', timerValue = 30, timerInterval = null;
+        var afkCount = { w: 0, b: 0 };
 
-        const firebaseConfig = { databaseURL: "https://chessonline-43534-default-rtdb.firebaseio.com" };
-
-        firebase.initializeApp(firebaseConfig);
-
-        const db = firebase.database();
-
-        const roomRef = db.ref('rooms/room1');
-
-
-
-        var board = null, game = new Chess(), selectedSquare = null, currentMode = 'PVE', myColor = 'w';
-
-        var timerValue = 30, timerInterval = null;
-
-
-
-        function addLog(m) { 
-
-            $('#logs').append(`<div>> ${m}</div>`); 
-
-            $('#logs').scrollTop($('#logs')[0].scrollHeight); 
-
+        function updateUI(title, msg, btns) {
+            $('#ce-title').text(title); $('#ce-msg').text(msg);
+            $('#ce-buttons').html(btns.map(b => `<button class="ce-btn ${b.cls}" onclick="${b.click}">${b.text}</button>`).join(''));
         }
 
-
-
-        function startTimer() {
-
-            clearInterval(timerInterval);
-
-            timerValue = (game.turn() === 'w') ? 30 : (currentMode === 'PVE' ? 10 : 30);
-
-            $('#timer-span').text(timerValue + "s");
-
-            timerInterval = setInterval(() => {
-
-                timerValue--;
-
-                $('#timer-span').text(timerValue + "s");
-
-                if (timerValue <= 0) {
-
-                    clearInterval(timerInterval);
-
-                    if (currentMode === 'PVE') makeAiMove();
-
-                }
-
-            }, 1000);
-
-        }
-
-
-
-        function makeAiMove() {
-
-            let moves = game.moves();
-
-            if (moves.length === 0) return;
-
-            let move = moves[Math.floor(Math.random() * moves.length)];
-
-            game.move(move);
-
-            board.position(game.fen());
-
-            addLog(`Máy: ${move}`);
-
-            updateGameStatus();
-
-        }
-
-
-
-        $(document).on('click', '.click-cell', function() {
-
-            if (currentMode === 'PVP' && game.turn() !== myColor) return;
-
-            const sq = $(this).data('sq');
-
-            if (selectedSquare) {
-
-                let move = game.move({ from: selectedSquare, to: sq, promotion: 'q' });
-
-                if (move) {
-
-                    addLog(`Bạn: ${move.from}-${move.to}`);
-
-                    board.position(game.fen());
-
-                    if (currentMode === 'PVP') roomRef.update({ fen: game.fen() });
-
-                    selectedSquare = null; clearBorders(); updateGameStatus();
-
-                    if (currentMode === 'PVE' && !game.game_over()) setTimeout(makeAiMove, 600);
-
-                } else { selectPiece(sq); }
-
-            } else { selectPiece(sq); }
-
-        });
-
-
-
-        function selectPiece(sq) {
-
-            let p = game.get(sq);
-
-            if (p && p.color === game.turn()) {
-
-                selectedSquare = sq; drawBorders(sq);
-
-            } else { selectedSquare = null; clearBorders(); }
-
-        }
-
-
-
-        function updateGameStatus() {
-
-            $('#status').text("LƯỢT ĐI: " + (game.turn()==='w'?"TRẮNG":"ĐEN"));
-
-            if (game.game_over()) {
-
-                clearInterval(timerInterval);
-
-                let winner = (game.turn() === 'w') ? "ĐEN" : "TRẮNG";
-
-                showCriticalError("Kết thúc", `QUÂN ${winner} THẮNG!`, [{text: "Chơi lại", click: "location.reload()"}]);
-
-            } else startTimer();
-
-        }
-
-
-
-        function requestChangeMode(m) {
-
-            if (m === 'PVP') {
-
-                showCriticalError("Ghép trận", "Đang tìm đối thủ... (Vui lòng chờ 1 phút)", []);
-
-                let waitTime = 60;
-
-                let searchInterval = setInterval(() => {
-
-                    waitTime--;
-
-                    if (waitTime <= 0) {
-
-                        clearInterval(searchInterval);
-
-                        showCriticalError("Lỗi ghép trận", "Không đủ người để vào phòng, bạn có muốn chuyển qua chế độ người với máy không?", [
-
-                            {text: "Đồng ý", click: "resetGame('PVE')"},
-
-                            {text: "Hủy", click: "closeModal()"}
-
-                        ]);
-
+        function prepareMatch(mode) {
+            if (mode === 'PVE') {
+                myColor = Math.random() > 0.5 ? 'w' : 'b';
+                updateUI("THÔNG BÁO", "Đã vào trận với Máy!", [{text: "BẮT ĐẦU", click: "startGame('PVE')", cls: "btn-blue"}]);
+            } else {
+                let wait = 60;
+                updateUI("GHÉP TRẬN", `Đang tìm đối thủ... (${wait}s)`, []);
+                let si = setInterval(() => {
+                    wait--; $('#ce-msg').text(`Đang tìm đối thủ... (${wait}s)`);
+                    if (wait === 55) { // Giả lập tìm thấy đối thủ
+                        clearInterval(si);
+                        myColor = Math.random() > 0.5 ? 'w' : 'b';
+                        updateUI("THÀNH CÔNG", "Đã tìm thấy đối thủ!", [{text: "VÀO TRẬN", click: "startGame('PVP')", cls: "btn-blue"}]);
                     }
-
-                    // Giả lập kiểm tra Firebase
-
-                    db.ref('presence').once('value', snap => {
-
-                        if (snap.numChildren() >= 1 && waitTime < 55) { // Ví dụ tìm thấy sau vài giây
-
-                            clearInterval(searchInterval);
-
-                            executePvpJoin();
-
-                        }
-
-                    });
-
+                    if (wait <= 0) {
+                        clearInterval(si);
+                        updateUI("THẤT BẠI", "Không tìm thấy đối thủ.", [
+                            {text: "THỬ LẠI", click: "prepareMatch('PVP')", cls: "btn-blue"},
+                            {text: "CHƠI VỚI MÁY", click: "prepareMatch('PVE')", cls: "btn-gray"}
+                        ]);
+                    }
                 }, 1000);
-
-            } else resetGame('PVE');
-
+            }
         }
 
-
-
-        function executePvpJoin() {
-
-            db.ref('presence').once('value', snap => {
-
-                let count = snap.numChildren();
-
-                myColor = (count === 0) ? 'w' : 'b';
-
-                db.ref('presence').push(true).onDisconnect().remove();
-
-                currentMode = 'PVP';
-
-                roomRef.set({ fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" });
-
-                $('.mode-btn').removeClass('active'); $('#pvp-btn').addClass('active');
-
-                showCriticalError("Thành công", "Ghép phòng thành công, đang tiến vào trò chơi.", [{text: "Bắt đầu", click: "closeModal()"}]);
-
+        function startGame(mode) {
+            currentMode = mode;
+            $('#modal-overlay').hide();
+            $('#main-layout').css({'opacity': '1', 'pointer-events': 'auto'});
+            
+            board = Chessboard('board', {
+                position: 'start', draggable: false,
+                orientation: myColor === 'w' ? 'white' : 'black',
+                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
             });
 
+            game.reset(); afkCount = {w:0, b:0};
+            initOverlay();
+            addLog(`Trận đấu ${mode} bắt đầu. Bạn cầm quân ${myColor==='w'?'Trắng':'Đen'}`);
+            startTimer();
         }
 
+        function initOverlay() {
+            const overlay = $('#click-overlay').empty();
+            let squares = [];
+            for(let i=1; i<=8; i++) ['a','b','c','d','e','f','g','h'].forEach(c => squares.push(c+i));
+            if (myColor === 'w') squares.reverse();
+            squares.forEach(sq => overlay.append(`<div class="click-cell" id="overlay-${sq}" data-sq="${sq}"></div>`));
+        }
 
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerValue = 30;
+            $('#timer-span').text("30s");
 
-        function resetGame(m) { closeModal(); currentMode = m; game.reset(); board.start(); startTimer(); $('.mode-btn').removeClass('active'); $(`#${m.toLowerCase()}-btn`).addClass('active'); }
+            // AI Move Logic (5-10s)
+            let aiTime = Math.floor(Math.random() * 6) + 5; // 5-10s
 
-        function drawBorders(s) { clearBorders(); $(`#overlay-${s}`).addClass('border-selected'); game.moves({square:s, verbose:true}).forEach(m=>$(`#overlay-${m.to}`).addClass('border-hint')) }
+            timerInterval = setInterval(() => {
+                timerValue--;
+                $('#timer-span').text(timerValue + "s");
 
-        function clearBorders() { $('.click-cell').removeClass('border-selected border-hint') }
+                // Logic máy đánh ở PVE
+                if (currentMode === 'PVE' && game.turn() !== myColor && (30 - timerValue) >= aiTime) {
+                    makeAiMove();
+                    return;
+                }
 
-        function showCriticalError(t,m,b) { $('#ce-title').text(t); $('#ce-msg').text(m); $('#ce-buttons').html(b.map(x=>`<button class="ce-btn" onclick="${x.click}">${x.text}</button>`).join('')); $('#modal-overlay, #custom-modal').show(); }
+                if (timerValue <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeout();
+                }
+            }, 1000);
+        }
 
-        function closeModal() { $('#modal-overlay, #custom-modal').hide(); }
+        function handleTimeout() {
+            let turn = game.turn();
+            afkCount[turn]++;
+            if (afkCount[turn] >= 5) {
+                $('#modal-overlay').show();
+                updateUI("CẢNH BÁO", "Đối thủ không còn chơi, bạn muốn thoát không?", [
+                    {text: "THOÁT", click: "location.reload()", cls: "btn-red"},
+                    {text: "TIẾP TỤC", click: "makeAiMove(); $('#modal-overlay').hide();", cls: "btn-gray"}
+                ]);
+            } else {
+                makeAiMove();
+            }
+        }
 
-        function confirmExit() { showCriticalError("Thoát", "Bạn có chắc muốn thoát?", [{text:"Yes", click:"location.reload()"}, {text:"No", click:"closeModal()"}]); }
+        function makeAiMove() {
+            let moves = game.moves();
+            if (moves.length === 0) return;
+            let move = moves[Math.floor(Math.random() * moves.length)];
+            game.move(move);
+            board.position(game.fen());
+            addLog(`Máy: ${move}`);
+            updateGameStatus();
+        }
 
+        $(document).on('click', '.click-cell', function() {
+            if (game.turn() !== myColor && currentMode === 'PVP') return;
+            const sq = $(this).data('sq');
+            if (selectedSquare) {
+                let move = game.move({ from: selectedSquare, to: sq, promotion: 'q' });
+                if (move) {
+                    addLog(`Bạn: ${move.from}-${move.to}`);
+                    board.position(game.fen());
+                    selectedSquare = null; clearBorders(); updateGameStatus();
+                } else { selectPiece(sq); }
+            } else { selectPiece(sq); }
+        });
 
+        function selectPiece(sq) {
+            let p = game.get(sq);
+            if (p && p.color === game.turn()) {
+                selectedSquare = sq; clearBorders();
+                $(`#overlay-${sq}`).addClass('border-selected');
+                game.moves({square:sq, verbose:true}).forEach(m=>$(`#overlay-${m.to}`).addClass('border-hint'));
+            } else { selectedSquare = null; clearBorders(); }
+        }
 
-        board = Chessboard('board', { position: 'start', draggable: false, pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png' });
+        function updateGameStatus() {
+            $('#status').text("LƯỢT ĐI: " + (game.turn()==='w'?"TRẮNG":"ĐEN"));
+            if (game.game_over()) {
+                clearInterval(timerInterval);
+                updateUI("KẾT THÚC", "Trận đấu đã kết thúc!", [{text: "CHƠI LẠI", click: "location.reload()", cls: "btn-blue"}]);
+                $('#modal-overlay').show();
+            } else startTimer();
+        }
 
-        for(let i=8; i>=1; i--) ['a','b','c','d','e','f','g','h'].forEach(c => $('#click-overlay').append(`<div class="click-cell" id="overlay-${c+i}" data-sq="${c+i}"></div>`));
+        function addLog(m) { 
+            $('#logs').append(`<div>> ${m}</div>`); 
+            $('#logs').scrollTop($('#logs')[0].scrollHeight); 
+        }
 
-        startTimer();
+        function clearBorders() { $('.click-cell').removeClass('border-selected border-hint'); }
 
+        function confirmExit() {
+            clearInterval(timerInterval);
+            $('#main-layout').css({'opacity': '0.3', 'pointer-events': 'none'});
+            $('#modal-overlay').show();
+            updateUI("CHESS MASTER", "Chọn chế độ chơi để bắt đầu", [
+                {text: "NGƯỜI VS MÁY", click: "prepareMatch('PVE')", cls: "btn-blue"},
+                {text: "NGƯỜI VS NGƯỜI", click: "prepareMatch('PVP')", cls: "btn-gray"}
+            ]);
+        }
     </script>
-
 </body>
-
 </html>
