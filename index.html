@@ -113,7 +113,7 @@
         }
 
         @keyframes blink {
-            0%, 100% {
+            0%, 100%         {
                 opacity: 1;
             }
 
@@ -214,10 +214,12 @@
         }
 
 
+
         /* Màu sắc cho Log */
         .log-user {
             color: #ffffff;
         }
+
 
 
         /* Trắng: Người chơi */
@@ -226,16 +228,19 @@
         }
 
 
+
         /* Xanh: Máy/Đối thủ */
         .log-system {
             color: #ffcc00;
         }
 
 
+
         /* Vàng: Hệ thống */
         .log-score {
             color: #ff4444;
         }
+
 
 
         /* Đỏ: Điểm số/Cảnh báo */
@@ -407,8 +412,27 @@
             initGame('PVP');
         }
 
-        // --- AI NÂNG CẤP: CHỐNG LẶP LẠI & TẤN CÔNG CHỦ ĐỘNG ---
-        const pieceValues = { p: 100, r: 520, n: 330, b: 330, q: 900, k: 20000 };
+        // Bảng vị trí giúp quân Mã và Tượng thích nhảy vào giữa để bao vây
+        const centerControl = [
+            [-20, -10, -10, -10, -10, -10, -10, -20],
+            [-10, 5, 5, 5, 5, 5, 5, -10],
+            [-10, 5, 10, 10, 10, 10, 5, -10],
+            [-10, 5, 10, 20, 20, 10, 5, -10],
+            [-10, 5, 10, 20, 20, 10, 5, -10],
+            [-10, 5, 10, 10, 10, 10, 5, -10],
+            [-10, 5, 5, 5, 5, 5, 5, -10],
+            [-20, -10, -10, -10, -10, -10, -10, -20]
+        ];
+
+        // Giá trị quân cờ: Tăng dần từ quân tốt đến quân quan trọng nhất
+        const pieceValues = {
+            p: 100,   // Tốt (Vòng ngoài)
+            n: 350,   // Mã
+            b: 360,   // Tượng
+            r: 550,   // Xe
+            q: 1000,  // Hậu (Vòng trong)
+            k: 50000  // Tướng (Cao nhất)
+        };
 
         function minimax(g, depth, isMax, alpha, beta) {
             if (depth === 0) return -evaluateBoard(g);
@@ -463,14 +487,21 @@
             for (let i = 0; i < 8; i++) {
                 for (let j = 0; j < 8; j++) {
                     const piece = board[i][j];
+                    // TRONG VÒNG LẶP CỦA evaluateBoard:
                     if (piece) {
                         let val = pieceValues[piece.type] || 0;
 
-                        // Tăng thưởng điểm vị trí (Position Bonus)
-                        if (piece.color === 'b') { // Giả sử AI là quân Đen
-                            val += (i * 20); // i càng lớn là càng tiến về phía Trắng
+                        // SỬA ĐOẠN NÀY:
+                        // Cộng thêm điểm từ bảng centerControl bạn đã định nghĩa ở trên
+                        if (piece.type === 'n' || piece.type === 'b' || piece.type === 'q') {
+                            val += centerControl[i][j];
+                        }
+
+                        // Giữ nguyên phần tính điểm tiến quân cũ của bạn nếu muốn
+                        if (piece.color === 'b') {
+                            val += (i * 10);
                         } else {
-                            val += ((7 - i) * 20);
+                            val += ((7 - i) * 10);
                         }
 
                         totalScore += (piece.color === 'w' ? val : -val);
@@ -482,15 +513,11 @@
 
         function aiMove() {
             if (game.game_over()) return;
-
-            // Chỉnh sửa: Máy sẽ quyết định đánh khi timer nằm trong khoảng 30s đến 23s
-            // (tương đương 0-7 giây sau khi bắt đầu lượt)
-            const targetTimer = Math.floor(Math.random() * (30 - 23 + 1)) + 23;
+            const targetTimer = Math.floor(Math.random() * (28 - 22 + 1)) + 22;
 
             function processAILogic() {
-                // Nếu thời gian còn lại chưa chạm tới mốc ngẫu nhiên (30-23s), tiếp tục chờ
                 if (timer > targetTimer) {
-                    setTimeout(processAILogic, 150); // Giải phóng CPU để Timer chạy mượt mà
+                    setTimeout(processAILogic, 150);
                     return;
                 }
 
@@ -500,38 +527,124 @@
                 let index = 0;
 
                 function processEachMove() {
-                    if (index < moves.length) {
+                    let batch = 0;
+                    while (index < moves.length && batch < 5) {
                         let m = moves[index];
                         game.move(m);
 
+                        // Tính toán điểm: Thần công + Phòng thủ quân lớn
                         let val = calculateTacticalScore(m, game);
                         val += minimax(game, 2, false, -Infinity, Infinity);
 
-                        if (aiRecentSquares.includes(m.to)) {
-                            val -= 2000;
-                        }
+                        if (aiRecentSquares.includes(m.to)) val -= 2000;
 
                         game.undo();
-
                         if (val > bestVal) {
                             bestVal = val;
                             bestMove = m;
                         }
                         index++;
-                        // setTimeout(..., 1) giúp chia nhỏ tác vụ để không làm treo UI/Timer
+                        batch++;
+                    }
+
+                    if (index < moves.length) {
                         setTimeout(processEachMove, 1);
                     } else {
                         if (!bestMove) bestMove = moves[0];
-
                         aiRecentSquares.push(bestMove.to);
                         if (aiRecentSquares.length > 4) aiRecentSquares.shift();
-
                         executeMove(bestMove);
                     }
                 }
                 processEachMove();
             }
             processAILogic();
+        }
+
+        function calculateTacticalScore(move, g) {
+            let score = 0;
+            const attackerVal = pieceValues[move.piece];
+
+            // 1. ƯU TIÊN ĂN QUÂN (Tấn công)
+            if (move.captured) {
+                const victimVal = pieceValues[move.captured];
+                score += (victimVal * 15);
+                if (attackerVal < victimVal) score += 5000;
+            }
+
+            // 2. BẢO VỆ QUÂN LỚN (Phòng thủ - Thí tốt)
+            // Kiểm tra xem nước đi có an toàn không
+            const opponentMoves = g.moves({ verbose: true });
+            const isSafe = !opponentMoves.some(m => m.to === move.to);
+
+            if (!isSafe) {
+                if (attackerVal >= 330) { // Mã, Tượng, Xe, Hậu
+                    score -= (attackerVal * 50); // Phạt nặng nếu đưa quân lớn vào chỗ chết
+                } else {
+                    score -= 50; // Tốt có thể hy sinh làm mồi nhử
+                }
+            }
+
+            // 3. CHIẾU TƯỚNG
+            g.move(move);
+            if (g.in_check()) {
+                score += 1500;
+                if (g.in_checkmate()) score += 100000;
+            }
+            g.undo();
+
+            return score;
+        }
+
+        function evaluatePosition(move, currentGame) {
+            let score = 0;
+            const isWhite = move.color === 'w';
+
+            // 1. ƯU TIÊN ĂN QUAN (Theo giá trị từ ngoài vào trong)
+            if (move.captured) {
+                score += pieceValues[move.captured] * 10;
+            }
+
+            // 2. CHỨC NĂNG NGĂN CẢN TỐT PHONG HẬU
+            // Kiểm tra xem sau nước đi này, có quân Tốt nào của đối thủ đang ở gần hàng cuối không
+            const board = currentGame.board();
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const piece = board[i][j];
+                    // Nếu là Tốt đối thủ và đang ở hàng 2 hoặc 7 (sắp phong cấp)
+                    if (piece && piece.type === 'p' && piece.color !== move.color) {
+                        let row = i;
+                        // Đối với quân Đen (b), hàng nguy hiểm là hàng 6, 7. Trắng (w) là hàng 1, 0.
+                        if ((piece.color === 'w' && row <= 1) || (piece.color === 'b' && row >= 6)) {
+                            // Nếu nước đi của máy có thể ăn quân Tốt này, cộng điểm cực lớn
+                            if (move.to === String.fromCharCode(97 + j) + (8 - i)) {
+                                score += 5000; // Ưu tiên tiêu diệt ngay
+                            } else {
+                                score -= 2000; // Trừ điểm nếu để quân Tốt này tồn tại
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. TẠO THẾ BAO VÂY (Kiểm soát trung tâm)
+            const centerSquares = ['d4', 'd5', 'e4', 'e5', 'c4', 'c5', 'f4', 'f5'];
+            if (centerSquares.includes(move.to)) score += 50;
+
+            return score;
+        }
+
+        // Sửa lỗi hàm tìm Vua để AI không bị treo
+        function findKing(color) {
+            const board = game.board();
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (board[i][j] && board[i][j].type === 'k' && board[i][j].color === color) {
+                        return String.fromCharCode(97 + j) + (8 - i);
+                    }
+                }
+            }
+            return null;
         }
 
         function calculateTacticalScore(move, g) {
@@ -601,12 +714,6 @@
             return moves.some(m => m.to === sq);
         }
 
-        // Hàm kiểm tra ô có bị tấn công không (để tránh đưa quân quan trọng vào chỗ chết)
-        function isSquareAttacked(sq, g) {
-            const moves = g.moves({ verbose: true });
-            return moves.some(m => m.to === sq);
-        }
-
         // Hàm tính toán giá trị chiến thuật của nước đi (Ăn quân & Đổi quân)
         function evaluateMoveTactics(move, g) {
             let score = 0;
@@ -636,6 +743,132 @@
             if (g.in_checkmate()) score += 5000;
 
             return score;
+        }
+
+        function getBestMoveAI() {
+            let moves = game.moves({ verbose: true });
+            let bestMove = null;
+            let bestValue = -Infinity;
+
+            for (let move of moves) {
+                game.move(move);
+
+                // Đánh giá nước đi: 
+                // 1. Điểm thế trận cơ bản + chặn tốt
+                let boardValue = evaluatePosition(move, game);
+
+                // 2. Bonus nếu nước đi này tạo thế CHIẾU TƯỚNG (Tấn công)
+                if (game.in_check()) boardValue += 800;
+
+                // 3. Dự đoán 2 nước (Minimax)
+                boardValue -= minimax(game, 2, -Infinity, Infinity, false);
+
+                game.undo();
+
+                if (boardValue > bestValue) {
+                    bestValue = boardValue;
+                    bestMove = move;
+                }
+            }
+            return bestMove;
+        }
+
+        function triggerAIMove() {
+            if (mode === 'PVE' && game.turn() !== myColor) {
+                // Khung giờ 22s - 28s (tương đương 2s - 8s đầu tiên)
+                const thinkTime = Math.floor(Math.random() * 5000) + 1000;
+
+                setTimeout(function () {
+                    // Chỉ đi nếu vẫn còn trong khung giờ ưu tiên hoặc máy chưa kịp đi
+                    if (timer >= 22) {
+                        const decision = getBestMoveAI(); // Gọi não AI bao vây
+                        if (decision) {
+                            executeMove(decision); // Thực hiện nước đi
+                        }
+                    }
+                }, thinkTime);
+            }
+        }
+
+        function getTacticalMove() {
+            let moves = game.moves({ verbose: true });
+            let bestMove = null;
+            let bestValue = -Infinity;
+
+            for (let move of moves) {
+                game.move(move);
+
+                // Tính toán độ sâu để máy nhìn xa hơn về thế bao vây
+                let boardValue = -minimax(game, 2, -Infinity, Infinity, false);
+
+                // Thêm "Trọng số phối hợp": Ưu tiên nước đi bảo vệ được quân khác
+                if (isSquareProtected(move.to, game)) {
+                    boardValue += 20;
+                }
+
+                game.undo();
+
+                if (boardValue > bestValue) {
+                    bestValue = boardValue;
+                    bestMove = move;
+                }
+            }
+            return bestMove;
+        }
+
+        // Kiểm tra xem quân cờ đi tới đó có được quân khác bảo vệ không (tấn công có tổ chức)
+        function isSquareProtected(sq, g) {
+            // Logic giả lập: nếu đối thủ ăn quân này, ta có thể ăn lại không?
+            let turn = g.turn();
+            let isSafe = false;
+            // ... logic kiểm tra sự phối hợp giữa các quân cờ hiện tại
+            return isSafe;
+        }
+
+        function evaluateSmartPosition(gameInstance) {
+            let totalScore = 0;
+            const board = gameInstance.board();
+            const moves = gameInstance.moves({ verbose: true });
+
+            // 1. Điểm Độ Linh Động: Máy có càng nhiều lựa chọn nước đi thì thế bao vây càng tốt
+            totalScore += moves.length * 5;
+
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const piece = board[i][j];
+                    if (piece) {
+                        let score = pieceValues[piece.type];
+
+                        // 2. Thưởng điểm vị trí: Ép máy đưa quân ra giữa sân để tạo lối bao vây
+                        if (piece.type === 'n' || piece.type === 'b' || piece.type === 'q') {
+                            score += centerControl[i][j];
+                        }
+
+                        // 3. Hình phạt cho việc "Lười biếng": Ép máy phải di chuyển quân ở hàng cuối ra trận
+                        if ((piece.type === 'n' || piece.type === 'b') && (i === 0 || i === 7)) {
+                            score -= 30;
+                        }
+
+                        totalScore += (piece.color === 'w' ? score : -score);
+                    }
+                }
+            }
+
+            // 4. Bonus cho việc Chiếu tướng (Tấn công dồn dập)
+            if (gameInstance.in_check()) totalScore += 150;
+
+            return totalScore;
+        }
+
+        // Hàm bổ trợ: Kiểm tra xem ô đó có đang bị đối thủ nhắm vào không
+        function isSquareAttackedByOpponent(sq, g) {
+            let turn = g.turn();
+            g.undo(); // Quay lại trạng thái trước khi đi để xem đối thủ có thể ăn ô đó không
+            let moves = g.moves({ verbose: true });
+            let isAttacked = moves.some(m => m.to === sq);
+            g.move(moves[0]); // Phục hồi lại (đây là logic giả lập để kiểm tra)
+            g.undo();
+            return isAttacked;
         }
 
         // Cập nhật hàm executeMove để log chi tiết việc ăn quân
@@ -672,8 +905,8 @@
             refreshStatus();
 
             if (mode === 'PVE' && game.turn() !== myColor) {
-                // AI suy nghĩ nhưng không làm treo timer
-                setTimeout(aiMove, 500);
+                // Gọi hàm trigger đã có sẵn logic thời gian 0-7s và chặn Tốt của bạn
+                triggerAIMove();
             }
         }
 
