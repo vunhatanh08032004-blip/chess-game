@@ -145,7 +145,6 @@
             border-radius: 4px;
         }
 
-        /* Modal System */
         .system-modal {
             display: none;
             position: fixed;
@@ -213,6 +212,34 @@
             background: rgba(0,0,0,0.8);
             z-index: 2999;
         }
+
+
+        /* Màu sắc cho Log */
+        .log-user {
+            color: #ffffff;
+        }
+
+
+        /* Trắng: Người chơi */
+        .log-opponent {
+            color: #00ccff;
+        }
+
+
+        /* Xanh: Máy/Đối thủ */
+        .log-system {
+            color: #ffcc00;
+        }
+
+
+        /* Vàng: Hệ thống */
+        .log-score {
+            color: #ff4444;
+        }
+
+
+        /* Đỏ: Điểm số/Cảnh báo */
+
     </style>
 </head>
 <body>
@@ -232,7 +259,7 @@
             </div>
             <div id="side-panel">
                 <div id="logs"></div>
-                <button onclick="exitGame()" style="margin-top:10px; background:#e74c3c; color:white; border:none; padding:12px; cursor:pointer; font-weight:bold; width:100%; border-radius:4px;">THOÁT</button>
+                <button onclick="confirmExit()" style="margin-top:10px; background:#e74c3c; color:white; border:none; padding:12px; cursor:pointer; font-weight:bold; width:100%; border-radius:4px;">THOÁT</button>
             </div>
         </div>
     </div>
@@ -270,9 +297,18 @@
         var board = null, game = new Chess(), selectedSq = null;
         var mode = '', myColor = 'w', timer = 30, timerInt = null, isPaused = false;
         var matchmakingTimer = null;
+        var aiRecentSquares = [];
 
-        function addLog(msg) {
-            $('#logs').append(`<div>> ${msg}</div>`);
+        // Cập nhật hàm addLog để hỗ trợ màu sắc và thời gian
+        function addLog(msg, type = 'system') {
+            const now = new Date();
+            const timeStr = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+
+            let colorClass = 'log-system';
+            if (type === 'user') colorClass = 'log-user';
+            if (type === 'opponent') colorClass = 'log-opponent';
+
+            $('#logs').append(`<div class="${colorClass}">${timeStr} ➔ ${msg}</div>`);
             $('#logs').scrollTop($('#logs')[0].scrollHeight);
         }
 
@@ -287,27 +323,40 @@
         function closeSystemModal() {
             $('#modal-overlay, #custom-modal').hide();
             if (matchmakingTimer) clearInterval(matchmakingTimer);
-            if (mode) {
-                isPaused = false;
-                $('#game-view-container').addClass('is-active');
-                startCountdown();
-            }
+            isPaused = false;
+            $('#game-view-container').addClass('is-active');
+            if (mode && !timerInt) startCountdown();
+        }
+
+        function confirmExit() {
+            triggerModal("Bạn có thực sự muốn thoát không?", [
+                { txt: "Thoát", fn: "exitGame()" },
+                { txt: "Ở lại", fn: "closeSystemModal()" }
+            ], "XÁC NHẬN");
         }
 
         function requestGame(m) {
-            $('.mode-btn').prop('disabled', true);
-            $(`#btn-${m.toLowerCase()}`).addClass('btn-active');
+            // Reset tất cả các nút về trạng thái bình thường
+            $('.mode-btn').removeClass('btn-active').css({
+                'opacity': '0.5',
+                'pointer-events': 'auto' // Cho phép chọn lại nếu muốn
+            });
+
+            // Làm sáng rực nút được chọn và giữ nó không bị mờ
+            $(`#btn-${m.toLowerCase()}`).addClass('btn-active').css({
+                'opacity': '1',
+                'pointer-events': 'none' // Khóa nút sau khi đã chọn
+            });
 
             if (m === 'PVP') {
                 let secondsLeft = 60;
                 triggerModal(`Đang tìm đối thủ... <br><span style="font-size:2em; color:#0055ea;" id="mm-countdown">60</span>`, [], "GHÉP TRẬN");
-
                 matchmakingTimer = setInterval(() => {
                     secondsLeft--;
                     $('#mm-countdown').text(secondsLeft);
                     if (secondsLeft <= 0) {
                         clearInterval(matchmakingTimer);
-                        triggerModal("Không tìm thấy đối thủ!", [{ txt: "Thoát", fn: "exitGame()" }]);
+                        triggerModal("Không có đối thủ nào đang chơi!", [{ txt: "Quay lại", fn: "exitGame()" }]);
                     }
                 }, 1000);
 
@@ -326,7 +375,7 @@
                             clearInterval(hb); clearInterval(matchmakingTimer);
                             myColor = 'b';
                             db.ref('rooms/' + peer.id).set({ fen: 'start', p1: peer.id, p2: myId });
-                            triggerModal("Ghép trận thành công, đang tiến vào trận đấu", [{ txt: "Bắt đầu", fn: "startGamePVP('" + peer.id + "')" }]);
+                            triggerModal("Đã tìm thấy đối thủ!", [{ txt: "Bắt đầu ngay", fn: "startGamePVP('" + peer.id + "')" }]);
                         }
                     });
                     if (!found) {
@@ -335,13 +384,12 @@
                                 clearInterval(hb); clearInterval(matchmakingTimer);
                                 db.ref('rooms/' + myId).off();
                                 myColor = 'w';
-                                triggerModal("Ghép trận thành công, đang tiến vào trận đấu", [{ txt: "Bắt đầu", fn: "startGamePVP('" + myId + "')" }]);
+                                triggerModal("Đã tìm thấy đối thủ!", [{ txt: "Bắt đầu ngay", fn: "startGamePVP('" + myId + "')" }]);
                             }
                         });
                     }
                 });
             } else {
-                // Chế độ PVE
                 triggerModal("Bắt đầu chế độ người với máy", [{ txt: "Bắt đầu", fn: "initGame('PVE')" }]);
             }
         }
@@ -359,35 +407,44 @@
             initGame('PVP');
         }
 
-        // --- AI MINIMAX (Tỉ lệ thắng người chơi 10%) ---
-        const pieceValues = { p: 10, r: 50, n: 30, b: 30, q: 90, k: 900 };
-        function evaluateBoard(g) {
-            let total = 0;
-            g.board().forEach(row => row.forEach(p => {
-                if (p) total += (p.color === 'w' ? 1 : -1) * pieceValues[p.type];
-            }));
-            return total;
-        }
+        // --- AI NÂNG CẤP: CHỐNG LẶP LẠI & TẤN CÔNG CHỦ ĐỘNG ---
+        const pieceValues = { p: 100, r: 520, n: 330, b: 330, q: 900, k: 20000 };
 
         function minimax(g, depth, isMax, alpha, beta) {
             if (depth === 0) return -evaluateBoard(g);
             let moves = g.moves();
+
+            // Sắp xếp ưu tiên: Chiếu tướng > Ăn quân > Tiến lên
+            moves.sort((a, b) => {
+                let sA = (a.includes('+') ? 20 : 0) + (a.includes('x') ? 15 : 0);
+                let sB = (b.includes('+') ? 20 : 0) + (b.includes('x') ? 15 : 0);
+                return sB - sA;
+            });
+
             if (isMax) {
-                let best = -9999;
+                let best = -2000000;
                 for (let m of moves) {
                     g.move(m);
-                    best = Math.max(best, minimax(g, depth - 1, false, alpha, beta));
+                    let score = minimax(g, depth - 1, false, alpha, beta);
+
+                    // SỬA TẠI ĐÂY: Phạt nếu ô đích 'to' trùng với các ô máy vừa đi 2 lượt trước
+                    if (aiRecentSquares.includes(m.to)) {
+                        score -= 150; // Phạt điểm để máy ưu tiên ô khác/quân khác
+                    }
+
                     g.undo();
+                    best = Math.max(best, score);
                     alpha = Math.max(alpha, best);
                     if (beta <= alpha) break;
                 }
                 return best;
             } else {
-                let best = 9999;
+                let best = 2000000;
                 for (let m of moves) {
                     g.move(m);
-                    best = Math.min(best, minimax(g, depth - 1, true, alpha, beta));
+                    let score = minimax(g, depth - 1, true, alpha, beta);
                     g.undo();
+                    best = Math.min(best, score);
                     beta = Math.min(beta, best);
                     if (beta <= alpha) break;
                 }
@@ -395,40 +452,251 @@
             }
         }
 
+        // Xóa aiMoveHistory và pieceMoveHistory cũ, thay bằng:
+        var aiRecentSquares = [];
+
+        function evaluateBoard(g) {
+            if (g.in_checkmate()) return g.turn() === 'w' ? -100000 : 100000;
+            let totalScore = 0;
+            const board = g.board();
+
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const piece = board[i][j];
+                    if (piece) {
+                        let val = pieceValues[piece.type] || 0;
+
+                        // Tăng thưởng điểm vị trí (Position Bonus)
+                        if (piece.color === 'b') { // Giả sử AI là quân Đen
+                            val += (i * 20); // i càng lớn là càng tiến về phía Trắng
+                        } else {
+                            val += ((7 - i) * 20);
+                        }
+
+                        totalScore += (piece.color === 'w' ? val : -val);
+                    }
+                }
+            }
+            return totalScore;
+        }
+
         function aiMove() {
             if (game.game_over()) return;
-            let moves = game.moves();
-            let bestMove = null;
-            let bestVal = -9999;
-            if (Math.random() < 0.9) {
-                for (let m of moves) {
-                    game.move(m);
-                    let val = minimax(game, 3, false, -10000, 10000);
-                    game.undo();
-                    if (val > bestVal) { bestVal = val; bestMove = m; }
+
+            // Chỉnh sửa: Máy sẽ quyết định đánh khi timer nằm trong khoảng 30s đến 23s
+            // (tương đương 0-7 giây sau khi bắt đầu lượt)
+            const targetTimer = Math.floor(Math.random() * (30 - 23 + 1)) + 23;
+
+            function processAILogic() {
+                // Nếu thời gian còn lại chưa chạm tới mốc ngẫu nhiên (30-23s), tiếp tục chờ
+                if (timer > targetTimer) {
+                    setTimeout(processAILogic, 150); // Giải phóng CPU để Timer chạy mượt mà
+                    return;
                 }
-            } else { bestMove = moves[Math.floor(Math.random() * moves.length)]; }
-            executeMove(bestMove);
+
+                let moves = game.moves({ verbose: true });
+                let bestMove = null;
+                let bestVal = -Infinity;
+                let index = 0;
+
+                function processEachMove() {
+                    if (index < moves.length) {
+                        let m = moves[index];
+                        game.move(m);
+
+                        let val = calculateTacticalScore(m, game);
+                        val += minimax(game, 2, false, -Infinity, Infinity);
+
+                        if (aiRecentSquares.includes(m.to)) {
+                            val -= 2000;
+                        }
+
+                        game.undo();
+
+                        if (val > bestVal) {
+                            bestVal = val;
+                            bestMove = m;
+                        }
+                        index++;
+                        // setTimeout(..., 1) giúp chia nhỏ tác vụ để không làm treo UI/Timer
+                        setTimeout(processEachMove, 1);
+                    } else {
+                        if (!bestMove) bestMove = moves[0];
+
+                        aiRecentSquares.push(bestMove.to);
+                        if (aiRecentSquares.length > 4) aiRecentSquares.shift();
+
+                        executeMove(bestMove);
+                    }
+                }
+                processEachMove();
+            }
+            processAILogic();
         }
 
+        function calculateTacticalScore(move, g) {
+            let score = 0;
+            const attackerVal = pieceValues[move.piece];
+
+            // 1. Phân tích giá trị Ăn quân & Đổi quân
+            if (move.captured) {
+                const victimVal = pieceValues[move.captured];
+                // TH: Tốt ăn quân lớn (Ví dụ: Tốt ăn Xe) -> Rất Tốt
+                if (attackerVal < victimVal) {
+                    score += (victimVal * 2);
+                }
+                // TH: Quân lớn ăn quân nhỏ (Ví dụ: Hậu ăn Tốt)
+                else if (attackerVal > victimVal) {
+                    // Nếu sau khi ăn mà bị ăn lại ngay lập tức -> Phạt nặng
+                    if (isSquareAttacked(move.to, g)) {
+                        score -= attackerVal;
+                    } else {
+                        score += victimVal;
+                    }
+                }
+            }
+
+            // 2. Logic Chiếu tướng & Tấn công an toàn (Đã xóa cảnh báo)
+            if (g.in_check()) {
+                // Nếu chiếu bí -> Thắng luôn
+                if (g.in_checkmate()) {
+                    score += 20000;
+                } else {
+                    // Kiểm tra nếu quân thực hiện chiếu tướng bị đe dọa ăn lại
+                    if (isSquareAttacked(move.to, g)) {
+                        // Trừ điểm nặng để máy tìm quân khác hoặc nước đi khác an toàn hơn
+                        score -= (attackerVal * 1.5);
+                    } else {
+                        // Chiếu tướng an toàn hoặc có bảo vệ -> Thưởng điểm tấn công
+                        score += 1200;
+                    }
+                }
+            }
+
+            // 3. Điểm thưởng cho việc bao vây Vua đối phương
+            score += controlNearKing(g);
+
+            return score;
+        }
+
+        // Hàm hỗ trợ: Đo mức độ bao vây quanh Vua đối thủ
+        function controlNearKing(g) {
+            let bonus = 0;
+            const kingSq = findKing(g.turn());
+            const moves = g.moves({ verbose: true });
+
+            moves.forEach(m => {
+                // Tính khoảng cách từ nước đi tới Vua đối phương
+                const distance = Math.abs(m.to.charCodeAt(0) - kingSq.charCodeAt(0)) +
+                    Math.abs(m.to.charCodeAt(1) - kingSq.charCodeAt(1));
+                // Nếu quân cờ áp sát hoặc kiểm soát các ô gần Vua (trong phạm vi 2 ô)
+                if (distance <= 2) bonus += 50;
+            });
+            return bonus;
+        }
+
+        // Hàm kiểm tra ô có bị tấn công không (để tránh đưa quân quan trọng vào chỗ chết)
+        function isSquareAttacked(sq, g) {
+            const moves = g.moves({ verbose: true });
+            return moves.some(m => m.to === sq);
+        }
+
+        // Hàm kiểm tra ô có bị tấn công không (để tránh đưa quân quan trọng vào chỗ chết)
+        function isSquareAttacked(sq, g) {
+            const moves = g.moves({ verbose: true });
+            return moves.some(m => m.to === sq);
+        }
+
+        // Hàm tính toán giá trị chiến thuật của nước đi (Ăn quân & Đổi quân)
+        function evaluateMoveTactics(move, g) {
+            let score = 0;
+
+            // 1. Nếu ăn quân
+            if (move.captured) {
+                let victimValue = pieceValues[move.captured];
+                let attackerValue = pieceValues[move.piece];
+
+                // TH1: Tốt ăn quân lớn (ví dụ Tốt ăn Xe) -> Rất tốt
+                if (attackerValue < victimValue) {
+                    score += (victimValue - attackerValue) * 10;
+                }
+
+                // TH2: Quân lớn ăn quân nhỏ (ví dụ Hậu ăn Tốt)
+                // Ta cần kiểm tra xem ô đó có bị quân địch canh giữ không
+                if (attackerValue > victimValue) {
+                    // Nếu sau khi ăn, quân đó bị đối phương ăn lại (giá trị âm lớn)
+                    // Nhưng nếu tạo ra thế chiếu tướng/bí thì vẫn cộng điểm
+                    if (g.in_check()) score += 500;
+                    if (g.in_checkmate()) score += 10000;
+                }
+            }
+
+            // Ưu tiên chiếu tướng và dồn thế bí
+            if (g.in_check()) score += 300;
+            if (g.in_checkmate()) score += 5000;
+
+            return score;
+        }
+
+        // Cập nhật hàm executeMove để log chi tiết việc ăn quân
         function executeMove(move) {
             const m = game.move(move);
+            if (!m) return;
+
             board.position(game.fen());
-            addLog(`${game.turn() !== myColor ? 'Bạn' : 'Máy'}: ${m.from} -> ${m.to}`);
+
+            // Xác định ai vừa đi để gán màu log
+            const isMyMove = (m.color === myColor[0]);
+            const role = isMyMove ? 'user' : 'opponent';
+            const name = isMyMove ? 'BẠN' : (mode === 'PVE' ? 'MÁY' : 'ĐỐI THỦ');
+
+            // Log nước đi kèm điểm đánh giá giả lập (giống hình ảnh)
+            const scoreEval = Math.floor(Math.random() * 50);
+            let moveMsg = `${name} đi: ${m.from}→${m.to} <span class="log-score">(Score Eval: ${scoreEval})</span>`;
+
+            if (m.captured) {
+                moveMsg += ` <b style="color:#ff4444;">- ĐÃ ĂN QUÂN</b>`;
+            }
+
+            addLog(moveMsg, role);
+
+            // Kiểm tra chiếu tướng sau nước đi
+            if (game.in_check()) {
+                addLog(`CẢNH BÁO: VUA ${game.turn() === 'w' ? 'TRẮNG' : 'ĐEN'} ĐANG BỊ CHIẾU!`, 'system');
+            }
+
             if (mode === 'PVP') db.ref('rooms/' + window.currentRoom).update({ fen: game.fen() });
+
+            timer = 30;
+            $('#timer-span').text(timer + "s");
             refreshStatus();
-            if (mode === 'PVE' && game.turn() !== myColor) setTimeout(aiMove, 1000);
+
+            if (mode === 'PVE' && game.turn() !== myColor) {
+                // AI suy nghĩ nhưng không làm treo timer
+                setTimeout(aiMove, 500);
+            }
         }
 
+        // Cập nhật refreshStatus để báo kết quả chi tiết
         function refreshStatus() {
             $('.click-cell').removeClass('in-check');
             $('#turn-display').text("LƯỢT: " + (game.turn() === 'w' ? "TRẮNG" : "ĐEN"));
+
             if (game.in_check()) $(`#sq-${findKing(game.turn())}`).addClass('in-check');
+
             if (game.game_over()) {
                 clearInterval(timerInt);
-                let msg = game.in_checkmate() ? (game.turn() === 'w' ? "ĐEN THẮNG!" : "TRẮNG THẮNG!") : "HÒA CỜ!";
-                triggerModal(msg, [{ txt: "Thoát", fn: "exitGame()" }], "KẾT THÚC");
-            } else { startCountdown(); }
+                let msg = "";
+                if (game.in_checkmate()) {
+                    let winner = (game.turn() === 'w' ? "ĐEN" : "TRẮNG");
+                    msg = `CHIẾU BÍ! QUÂN ${winner} THẮNG.`;
+                    addLog(`HẾT TRẬN: ${msg}`, 'system');
+                } else if (game.in_draw()) {
+                    msg = "HÒA CỜ (Hết nước đi hoặc lặp lại)!";
+                    addLog(`HẾT TRẬN: ${msg}`, 'system');
+                }
+                triggerModal(msg, [{ txt: "Quay lại", fn: "exitGame()" }], "KẾT QUẢ");
+            }
         }
 
         function findKing(c) {
@@ -440,13 +708,18 @@
         }
 
         function startCountdown() {
-            clearInterval(timerInt); timer = 30;
+            if (timerInt) clearInterval(timerInt);
+            timer = 30;
             $('#timer-span').show().text(timer + "s");
             timerInt = setInterval(() => {
                 if (!isPaused) {
-                    timer--; $('#timer-span').text(timer + "s");
+                    timer--;
+                    $('#timer-span').text(timer + "s");
                     if (timer <= 0) {
-                        if (game.turn() === myColor) { let m = game.moves()[0]; if (m) executeMove(m); }
+                        if (game.turn() === myColor) {
+                            let moves = game.moves();
+                            if (moves.length > 0) executeMove(moves[0]);
+                        }
                     }
                 }
             }, 1000);
@@ -480,22 +753,24 @@
             sqs.forEach(s => $('#click-overlay').append(`<div class="click-cell" id="sq-${s}" data-sq="${s}"></div>`));
         }
 
+        // Cập nhật khởi tạo game để log chế độ
         function initGame(m) {
             mode = m;
             game.reset();
+            aiRecentSquares = [];
             if (m === 'PVE') {
                 myColor = Math.random() > 0.5 ? 'w' : 'b';
+                addLog(`CHẾ ĐỘ: NGƯỜI VS MÁY - Bạn cầm quân ${myColor === 'w' ? 'TRẮNG' : 'ĐEN'}`, 'system');
+            } else {
+                addLog(`CHẾ ĐỘ: NGƯỜI VS NGƯỜI - Trận đấu bắt đầu!`, 'system');
             }
+
             board.orientation(myColor === 'w' ? 'white' : 'black');
             board.start();
             drawClickGrid();
-
-            // HIỆN THÔNG BÁO KHI BẮT ĐẦU HIỂN THỊ BÀN CỜ
-            addLog("Trò chơi bắt đầu");
-            triggerModal("Trò chơi bắt đầu", [{ txt: "Chơi thôi!", fn: "closeSystemModal()" }]);
-
+            closeSystemModal();
             refreshStatus();
-            if (myColor === 'b' && m === 'PVE') setTimeout(aiMove, 1500); // Đợi chút sau thông báo mới đi
+            if (myColor === 'b' && m === 'PVE') setTimeout(aiMove, 1000);
         }
 
         function exitGame() {
