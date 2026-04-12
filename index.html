@@ -1,17 +1,15 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chess Master - Cyber Purple Pro</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0f0a1e">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Chess Purple">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+    <title>CHESS MASTER PURPLE - ULTIMATE AI</title>
     <style>
         :root {
             --primary-glow: #a29bfe;
@@ -153,7 +151,7 @@
             backdrop-filter: blur(12px);
             padding: 12px 20px;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
             margin-bottom: 15px;
             border-radius: 12px;
@@ -186,6 +184,7 @@
             margin-bottom: 6px;
             padding-bottom: 3px;
             border-bottom: 1px solid rgba(255,255,255,0.03);
+            text-align: left;
         }
 
         .log-white {
@@ -208,6 +207,13 @@
             margin: 5px 0;
         }
 
+        .log-thinking {
+            color: #888;
+            font-size: 10px;
+            padding-left: 10px;
+            font-style: italic;
+        }
+
         .log-warning {
             color: var(--warning-gold);
             font-weight: 900;
@@ -217,13 +223,6 @@
             border-radius: 4px;
             text-transform: uppercase;
             animation: flash 1s infinite alternate;
-        }
-
-        .log-thinking {
-            color: #888;
-            font-size: 10px;
-            padding-left: 10px;
-            font-style: italic;
         }
 
         @keyframes flash {
@@ -238,24 +237,51 @@
             }
         }
 
-        #custom-modal {
+        .log-time-sync {
+            color: #888;
+            font-family: monospace;
+            font-size: 10px;
+            margin-right: 8px;
+        }
+
+        #custom-modal, #promotion-menu {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             background: rgba(20, 15, 35, 0.98);
             backdrop-filter: blur(25px);
-            padding: 40px;
-            border-radius: 24px;
+            padding: 25px 20px; /* Thu nhỏ padding để không bị tràn */
+            border-radius: 20px;
             border: 2px solid var(--primary-glow);
             z-index: 2000;
             text-align: center;
             display: none;
-            min-width: 320px;
+            width: 85%; /* Sử dụng % để tự thích ứng với điện thoại */
+            max-width: 380px;
+            box-sizing: border-box; /* Đảm bảo padding không làm phình kích thước */
             box-shadow: 0 0 100px rgba(0,0,0,0.9), 0 0 30px var(--secondary-glow);
         }
 
-        .click-cell {
+        #modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1999;
+        }
+
+        .modal-btn {
+            background: linear-gradient(45deg, #6c5ce7, #8e44ad);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            margin: 5px;
+            border-radius: 8px;
+            font-weight: bold;
             cursor: pointer;
         }
 
@@ -266,22 +292,39 @@
         }
 
         .border-hint {
-            background: rgba(162, 155, 254, 0.2);
-            border: 2px dashed var(--primary-glow);
-            box-sizing: border-box;
+            background: rgba(162, 155, 254, 0.4) !important;
+            border: 2px dashed #a29bfe !important;
         }
 
-        /* Hiệu ứng khi bị chiếu tướng: Chỉ dùng shadow đỏ nhạt dưới quân cờ */
         .check-square {
             box-shadow: inset 0 0 25px rgba(255, 71, 87, 0.8) !important;
             background: rgba(255, 71, 87, 0.15) !important;
         }
 
-        /* Hiệu ứng nhấp nháy mạnh hơn cho quân Vua */
         .check-blink {
             animation: king-blink 0.6s infinite alternate !important;
             filter: drop-shadow(0 0 8px #ff4757) !important;
         }
+
+        .promo-option {
+            display: inline-block;
+            width: 60px;
+            height: 60px;
+            margin: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+
+            .promo-option:hover {
+                transform: scale(1.2);
+                background: rgba(162, 155, 254, 0.3);
+            }
+
+            .promo-option img {
+                width: 100%;
+            }
 
         @keyframes king-blink {
             0% {
@@ -295,68 +338,86 @@
             }
         }
 
-        @media (max-width: 850px) {
+        @media (max-width: 768px) {
             body {
                 overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
             }
 
             #game-view-container {
+                display: flex;
                 flex-direction: column;
-                height: auto;
-                padding-top: 80px;
-            }
-
-            #side-panel {
-                width: 100%;
-                height: 350px;
+                justify-content: flex-start;
+                align-items: center;
+                padding: 5px; /* Thu nhỏ khoảng cách lề */
+                gap: 10px; /* Thu nhỏ khoảng cách giữa bàn cờ và log */
+                height: 100vh;
             }
 
             #game-outer {
                 width: 100%;
-            }
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-        /* Tối ưu cho Mobile trong phần @media (max-width: 850px) */
-        @media (max-width: 850px) {
-            #game-outer {
-                width: 95vw !important; /* Bàn cờ chiếm 95% chiều rộng màn hình */
-                margin: 0 auto;
+                order: 1;
             }
 
             .board-wrapper {
-                padding: 4px; /* Giảm padding để tiết kiệm không gian */
+                padding: 3px;
+                width: 90vw; /* Thu nhỏ bàn cờ lại một chút */
+                max-width: 400px;
+                margin: 0 auto;
             }
 
             #side-panel {
-                height: 250px; /* Giảm chiều cao khu vực log */
-                margin-top: 10px;
+                width: 90vw; /* Đồng bộ chiều rộng với bàn cờ */
+                max-width: 400px;
+                flex-grow: 1;
+                max-height: 35vh; /* Giới hạn chiều cao bảng log để không đẩy nút thoát xuống quá sâu */
+                order: 2;
+            }
+
+            #logs {
+                font-size: 10px; /* Thu nhỏ chữ log một chút */
             }
 
             .game-title {
-                font-size: 1.8em; /* Chữ nhỏ lại để không chiếm hết màn hình */
+                font-size: 2em; /* Thu nhỏ tiêu đề */
             }
 
-            .menu-btn {
-                padding: 15px; /* Nút to vừa phải để dễ bấm bằng ngón tay */
-                font-size: 14px;
+            .click-cell, .board-b72b1 {
+                touch-action: manipulation;
             }
+        }
+
+        #click-overlay {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: calc(100% - 16px);
+            height: calc(100% - 16px);
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            z-index: 100;
+        }
+
+        #board {
+            position: relative;
+        }
+
+        .click-cell {
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.01);
+            box-sizing: border-box;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
-
+    <div id="modal-overlay"></div>
     <div id="custom-modal">
-        <h2 id="modal-title" style="margin-top:0; color:var(--primary-glow); letter-spacing: 2px;">VÁN ĐẤU KẾT THÚC</h2>
-        <p id="modal-msg" style="font-size: 1.4em; margin: 25px 0; font-weight: 600;"></p>
-        <button class="menu-btn" style="width:100%" onclick="location.reload()">CHƠI VÁN MỚI</button>
+        <h2 id="modal-title" style="margin-top:0; color:var(--primary-glow); letter-spacing: 2px;">HỆ THỐNG</h2>
+        <p id="modal-msg" style="font-size: 1.2em; margin: 25px 0; font-weight: 600; line-height: 1.4;"></p>
+        <div id="modal-btns"></div>
     </div>
 
     <div id="screen-intro" class="screen">
@@ -375,13 +436,13 @@
         <div class="game-title" style="font-size: 2.5em;">CHỌN CHẾ ĐỘ</div>
         <div class="btn-container">
             <button class="menu-btn" onclick="switchScreen('screen-difficulty')">ĐẤU VỚI MÁY</button>
-            <button class="menu-btn" onclick="startMatchmaking()">ĐẤU 2 NGƯỜI</button>
+            <button class="menu-btn" onclick="requestGame('PVP')">ĐẤU 2 NGƯỜI (ONLINE)</button>
             <button class="menu-btn" style="opacity:0.6; font-size: 12px;" onclick="switchScreen('screen-intro')">QUAY LẠI</button>
         </div>
     </div>
 
     <div id="screen-difficulty" class="screen hidden">
-        <div class="game-title" style="font-size: 2em;">ĐỘ KHÓ</div>
+        <div class="game-title" style="font-size: 2em;">ĐỘ KHÓ AI</div>
         <div class="btn-container">
             <button class="menu-btn" onclick="startGameAI(2)">DỄ (Depth 2)</button>
             <button class="menu-btn" onclick="startGameAI(3)">TRUNG BÌNH (Depth 3)</button>
@@ -390,41 +451,35 @@
         </div>
     </div>
 
-    <div id="screen-lobby" class="screen hidden">
-        <div class="logo-container">
-            <div class="spinner" style="border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid var(--primary-glow); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite;"></div>
-        </div>
-        <div class="game-title" style="font-size: 2em;">ĐANG TÌM ĐỐI THỦ</div>
-        <div id="lobby-status" style="margin-bottom: 20px; color: var(--primary-glow);">Đang kết nối server...</div>
-        <div id="lobby-timer" style="font-size: 3em; font-weight: 900; color: #ff7675;">60s</div>
-        <div class="btn-container">
-            <button class="menu-btn" style="background: var(--danger-red);" onclick="cancelMatchmaking('Đã hủy tìm trận')">HỦY TÌM KIẾM</button>
-        </div>
-    </div>
-
     <div id="game-view-container">
         <div id="game-outer">
             <div class="info-bar">
-                <span id="turn-display" style="font-weight:bold; letter-spacing:1px; color: var(--primary-glow)">LƯỢT: TRẮNG</span>
-                <span id="timer-span" style="color:#ff7675; font-size:1.6em; font-weight:900; filter: drop-shadow(0 0 5px #ff7675)">30s</span>
+                <span id="turn-display" style="font-size:1.2em; font-weight:bold; letter-spacing:1px; color: var(--primary-glow)">LƯỢT: TRẮNG</span>
             </div>
             <div class="board-wrapper">
                 <div id="board"></div>
-                <div id="click-overlay" style="position: absolute; top: 8px; left: 8px; width: calc(100% - 16px); height: calc(100% - 16px); display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); z-index: 100;"></div>
+                <div id="click-overlay"></div>
             </div>
         </div>
 
         <div id="side-panel">
             <div id="logs"></div>
-            <button class="menu-btn" style="background: linear-gradient(45deg, #ff4757, #ff6b81); box-shadow: 0 0 15px rgba(255, 71, 87, 0.4);" onclick="location.reload()">THOÁT TRẬN</button>
+            <button class="menu-btn" style="background: linear-gradient(45deg, #ff4757, #ff6b81); box-shadow: 0 0 15px rgba(255, 71, 87, 0.4);" onclick="confirmExit()">THOÁT TRẬN</button>
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+    <div id="promotion-menu">
+        <h3 style="color: var(--primary-glow); margin-bottom: 15px;">CHỌN QUÂN PHONG CẤP</h3>
+        <div id="promo-options">
+            <div class="promo-option" data-piece="q"><img src="" alt="Queen"></div>
+            <div class="promo-option" data-piece="r"><img src="" alt="Rook"></div>
+            <div class="promo-option" data-piece="b"><img src="" alt="Bishop"></div>
+            <div class="promo-option" data-piece="n"><img src="" alt="Knight"></div>
+        </div>
+    </div>
 
     <script>
+        // === CẤU HÌNH FIREBASE ===
         const firebaseConfig = {
             apiKey: "AIzaSyCJRXRhYXBbc0DiwZg3KXnySGJ63z4Ow2s",
             authDomain: "chessonline-43534.firebaseapp.com",
@@ -434,357 +489,516 @@
             messagingSenderId: "194591877060",
             appId: "1:194591877060:web:4d9461cbebfc3184eb2691"
         };
-
-        // Khởi tạo Firebase
         firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        const db = firebase.database();
+        const myId = "UID-" + Math.random().toString(36).substr(2, 5);
 
-        let currentGameId = null;
-        let matchmakingTimer = null;
-        let lobbyTimeout = null;
+        // === BIẾN TOÀN CỤC CHUNG ===
+        let board = null, game = new Chess();
+        let myColor = 'w', isPaused = false, depthAI = 3;
+        let mode = 'PVE', selectedSq = null;
+        let aiThinking = false, aiThinkID = 0;
+        let currentRoom = null, pendingMove = null, matchmakingTimer = null;
+        let turnStartTime = performance.now();
+        const pieceNames = { p: 'Tốt', n: 'Mã', b: 'Tượng', r: 'Xe', q: 'Hậu', k: 'Vua' };
 
-        function startMatchmaking() {
-            switchScreen('screen-lobby');
-            let timeLeft = 60;
-            $('#lobby-timer').text(timeLeft + "s");
-            $('#lobby-status').text("Đang tìm đối thủ...");
+        // === DỮ LIỆU ĐÁNH GIÁ AI ===
+        const VALUES = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
 
-            // Xóa bộ đếm cũ nếu có
-            stopLobbyTimers();
+        const PAWN_PST = [
+            0, 0, 0, 0, 0, 0, 0, 0,
+            50, 50, 50, 50, 50, 50, 50, 50,
+            10, 10, 20, 30, 30, 20, 10, 10,
+            5, 5, 10, 25, 25, 10, 5, 5,
+            0, 0, 0, 20, 20, 0, 0, 0,
+            5, -5, -10, 0, 0, -10, -5, 5,
+            5, 10, 10, -20, -20, 10, 10, 5,
+            0, 0, 0, 0, 0, 0, 0, 0
+        ];
+        const KNIGHT_PST = [
+            -50, -40, -30, -30, -30, -30, -40, -50,
+            -40, -20, 0, 0, 0, 0, -20, -40,
+            -30, 0, 10, 15, 15, 10, 0, -30,
+            -30, 5, 15, 20, 20, 15, 5, -30,
+            -30, 0, 15, 20, 20, 15, 0, -30,
+            -30, 5, 10, 15, 15, 10, 5, -30,
+            -40, -20, 0, 5, 5, 0, -20, -40,
+            -50, -40, -30, -30, -30, -30, -40, -50
+        ];
+        const BISHOP_PST = [
+            -20, -10, -10, -10, -10, -10, -10, -20,
+            -10, 0, 0, 0, 0, 0, 0, -10,
+            -10, 0, 5, 10, 10, 5, 0, -10,
+            -10, 5, 5, 10, 10, 5, 5, -10,
+            -10, 0, 10, 10, 10, 10, 10, -10,
+            -10, 10, 10, 10, 10, 10, 10, -10,
+            -10, 5, 0, 0, 0, 0, 5, -10,
+            -20, -10, -10, -10, -10, -10, -10, -20
+        ];
+        const ROOK_PST = [
+            0, 0, 0, 5, 5, 0, 0, 0,
+            -5, 0, 0, 0, 0, 0, 0, -5,
+            -5, 0, 0, 0, 0, 0, 0, -5,
+            -5, 0, 0, 0, 0, 0, 0, -5,
+            -5, 0, 0, 0, 0, 0, 0, -5,
+            -5, 0, 0, 0, 0, 0, 0, -5,
+            5, 10, 10, 10, 10, 10, 10, 5,
+            0, 0, 0, 0, 0, 0, 0, 0
+        ];
+        const QUEEN_PST = [
+            -20, -10, -10, -5, -5, -10, -10, -20,
+            -10, 0, 0, 0, 0, 0, 0, -10,
+            -10, 0, 5, 5, 5, 5, 0, -10,
+            -5, 0, 5, 5, 5, 5, 0, -5,
+            0, 0, 5, 5, 5, 5, 0, -5,
+            -10, 5, 5, 5, 5, 5, 0, -10,
+            -10, 0, 5, 0, 0, 0, 0, -10,
+            -20, -10, -10, -5, -5, -10, -10, -20
+        ];
+        const KING_PST = [
+            -30, -40, -40, -50, -50, -40, -40, -30,
+            -30, -40, -40, -50, -50, -40, -40, -30,
+            -30, -40, -40, -50, -50, -40, -40, -30,
+            -30, -40, -40, -50, -50, -40, -40, -30,
+            -20, -30, -30, -40, -40, -30, -30, -20,
+            -10, -20, -20, -20, -20, -20, -20, -10,
+            20, 20, 0, 0, 0, 0, 20, 20,
+            20, 30, 10, 0, 0, 10, 30, 20
+        ];
 
-            matchmakingTimer = setInterval(() => {
-                timeLeft--;
-                $('#lobby-timer').text(timeLeft + "s");
-                if (timeLeft <= 0) {
-                    cancelMatchmaking("Không tìm thấy đối thủ đang online. Vui lòng thử lại sau!");
-                }
-            }, 1000);
-
-            const roomsRef = database.ref('rooms');
-
-            // Tìm một phòng có trạng thái 'waiting'
-            roomsRef.once('value').then(snapshot => {
-                let roomToJoin = null;
-                snapshot.forEach(child => {
-                    if (child.val().status === 'waiting') {
-                        roomToJoin = child.key;
-                    }
-                });
-
-                if (roomToJoin) {
-                    joinRoom(roomToJoin);
-                } else {
-                    createRoom();
-                }
-            });
-        }
-
-        // 2. Hàm tạo phòng (Người đợi)
-        function createRoom() {
-            const newRoomRef = database.ref('rooms').push();
-            currentGameId = newRoomRef.key;
-            myColor = 'w'; // Chủ phòng quân Trắng
-
-            newRoomRef.set({
-                status: 'waiting',
-                fen: 'start',
-                turn: 'w',
-                createdAt: firebase.database.ServerValue.TIMESTAMP
-            });
-
-            // Lắng nghe khi có người vào (status chuyển sang 'playing')
-            newRoomRef.on('value', snapshot => {
-                const data = snapshot.val();
-                if (data && data.status === 'playing') {
-                    newRoomRef.off('value'); // Ngừng nghe trạng thái
-                    stopLobbyTimers();
-                    initGame('PVP', 'w');
-                    listenForOpponentMoves();
-                }
-            });
-
-            // Tự động xóa phòng nếu chủ phòng tắt trình duyệt
-            newRoomRef.onDisconnect().remove();
-        }
-
-        // 3. Hàm vào phòng (Người thứ 2)
-        function joinRoom(roomId) {
-            currentGameId = roomId;
-            myColor = 'b'; // Người vào sau quân Đen
-
-            database.ref('rooms/' + roomId).update({
-                status: 'playing'
-            }).then(() => {
-                stopLobbyTimers();
-                initGame('PVP', 'b');
-                listenForOpponentMoves();
-            });
-
-            // Xóa cơ chế onDisconnect nếu bạn là người vào sau
-            database.ref('rooms/' + roomId).onDisconnect().remove();
-        }
-
-        // 4. Hàm hủy tìm trận
-        function cancelMatchmaking(msg) {
-            stopLobbyTimers();
-            if (currentGameId) {
-                database.ref('rooms/' + currentGameId).remove();
-                currentGameId = null;
-            }
-            alert(msg);
-            switchScreen('screen-start');
-        }
-
-        // Lắng nghe nước đi từ Firebase
-        function listenForOpponentMoves() {
-            database.ref('rooms/' + currentGameId + '/lastMove').on('value', snapshot => {
-                const move = snapshot.val();
-                // Nếu nước đi vừa nhận là của đối thủ
-                if (move && move.color !== myColor) {
-                    const result = game.move(move);
-                    if (result) {
-                        onAfterMove(result, true); // true để báo đây là nhận từ sync, không cần gửi ngược lên lại
-                    }
-                }
-            });
-        }
-
-        function stopLobbyTimers() {
-            if (matchmakingTimer) clearInterval(matchmakingTimer);
-            if (lobbyTimeout) clearTimeout(lobbyTimeout);
-        }
-
-        function cancelMatchmaking(msg) {
-            stopLobbyTimers();
-            if (currentGameId && myColor === 'w') {
-                database.ref('lobby/' + currentGameId).remove();
-            }
-            alert(msg);
-            switchScreen('screen-start');
-        }
-
-        var board = null;
-        var aiworker = new Worker("aiworker.js");
-        var game = new Chess();
-        var myColor = 'w';
-        var depthAI = 3;
-        var mode = 'PVE';
-        var timer = 30;
-        var timerInt = null;
-        var selectedSq = null;
-        var transTable = {};
-        var turnStartTime = null;
-
-        var pieceNames = {
-            p: 'Tốt', n: 'Mã', b: 'Tượng', r: 'Xe', q: 'Hậu', k: 'Vua'
+        const PSTs = {
+            p: PAWN_PST, n: KNIGHT_PST, b: BISHOP_PST,
+            r: ROOK_PST, q: QUEEN_PST, k: KING_PST
         };
 
-        var pieceSquareTables = {
-            p: [[0, 0, 0, 0, 0, 0, 0, 0], [5, 5, 5, 5, 5, 5, 5, 5], [1, 1, 2, 3, 3, 2, 1, 1], [0.5, 0.5, 1, 2.5, 2.5, 1, 0.5, 0.5], [0, 0, 0, 2, 2, 0, 0, 0], [0.5, -0.5, -1, 0, 0, -1, -0.5, 0.5], [0.5, 1, 1, -2, -2, 1, 1, 0.5], [0, 0, 0, 0, 0, 0, 0, 0]],
-            n: [[-5, -4, -3, -3, -3, -3, -4, -5], [-4, -2, 0, 0, 0, 0, -2, -4], [-3, 0, 1, 1.5, 1.5, 1, 0, -3], [-3, 0.5, 1.5, 2, 2, 1.5, 0.5, -3], [-3, 0, 1.5, 2, 2, 1.5, 0, -3], [-3, 0.5, 1, 1.5, 1.5, 1, 0.5, -3], [-4, -2, 0, 0.5, 0.5, 0, -2, -4], [-5, -4, -3, -3, -3, -3, -4, -5]],
-            b: [[-2, -1, -1, -1, -1, -1, -1, -2], [-1, 0, 0, 0, 0, 0, 0, -1], [-1, 0, 0.5, 1, 1, 0.5, 0, -1], [-1, 0.5, 0.5, 1, 1, 0.5, 0.5, -1], [-1, 0, 1, 1, 1, 1, 0, -1], [-1, 1, 1, 1, 1, 1, 1, -1], [-1, 0.5, 0, 0, 0, 0, 0.5, -1], [-2, -1, -1, -1, -1, -1, -1, -2]],
-            r: [[0, 0, 0, 0, 0, 0, 0, 0], [0.5, 1, 1, 1, 1, 1, 1, 0.5], [-0.5, 0, 0, 0, 0, 0, 0, -0.5], [-0.5, 0, 0, 0, 0, 0, 0, -0.5], [-0.5, 0, 0, 0, 0, 0, 0, -0.5], [-0.5, 0, 0, 0, 0, 0, 0, -0.5], [-0.5, 0, 0, 0, 0, 0, 0, -0.5], [0, 0, 0, 0.5, 0.5, 0, 0, 0]],
-            q: [[-2, -1, -1, -0.5, -0.5, -1, -1, -2], [-1, 0, 0, 0, 0, 0, 0, -1], [-1, 0, 0.5, 0.5, 0.5, 0.5, 0, -1], [-0.5, 0, 0.5, 0.5, 0.5, 0.5, 0, -0.5], [0, 0, 0.5, 0.5, 0.5, 0.5, 0, -0.5], [-1, 0.5, 0.5, 0.5, 0.5, 0.5, 0, -1], [-1, 0, 0.5, 0, 0, 0, 0, -1], [-2, -1, -1, -0.5, -0.5, -1, -1, -2]],
-            k: [[-3, -4, -4, -5, -5, -4, -4, -3], [-3, -4, -4, -5, -5, -4, -4, -3], [-3, -4, -4, -5, -5, -4, -4, -3], [-3, -4, -4, -5, -5, -4, -4, -3], [-2, -3, -3, -4, -4, -3, -3, -2], [-1, -2, -2, -2, -2, -2, -2, -1], [2, 2, 0, 0, 0, 0, 2, 2], [2, 3, 1, 0, 0, 1, 3, 2]]
-        };
+        let transpositionTable = new Map();
+        let killerMoves = new Array(10).fill(null).map(() => ({ 1: null, 2: null }));
+        let historyTable = new Map();
+        const TT_EXACT = 0, TT_LOWERBOUND = 1, TT_UPPERBOUND = 2;
 
-        function showModal(msg) {
-            $('#modal-msg').text(msg);
-            $('#custom-modal').fadeIn();
-        }
-
+        // === UI & GIAO DIỆN ===
         function switchScreen(id) {
             $('.screen').addClass('hidden');
-            if (id === 'game-view-container') {
-                $('#game-view-container').css('display', 'flex');
-            } else {
-                $('#' + id).removeClass('hidden');
+            $('#game-view-container').hide();
+            if (id === 'game-view-container') $('#game-view-container').css('display', 'flex');
+            else $('#' + id).removeClass('hidden');
+        }
+
+        function triggerModal(msg, btns, title = "HỆ THỐNG") {
+            isPaused = true;
+            $('#modal-title').text(title);
+            $('#modal-msg').html(msg);
+            $('#modal-btns').html(btns.map(x => `<button class="modal-btn" onclick="${x.fn}">${x.txt}</button>`).join(''));
+            $('#modal-overlay, #custom-modal').fadeIn();
+        }
+
+        function closeSystemModal() {
+            $('#modal-overlay, #custom-modal').fadeOut();
+            if (matchmakingTimer) {
+                clearInterval(matchmakingTimer);
+                matchmakingTimer = null;
+                db.ref('matchmaking/' + myId).remove();
+                db.ref('rooms/' + myId).remove();
+            }
+            isPaused = false;
+
+            // Nếu đến lượt máy mà máy đang đứng im, kích hoạt lại
+            if (mode === 'PVE' && game.turn() !== myColor && !aiThinking) {
+                aiThinkID++; // Hủy các tiến trình cũ
+                setTimeout(startAiChunking, 200);
             }
         }
 
-        function addLog(msg, colorClass = '') {
-            const entry = `<div class="log-entry ${colorClass}">${msg}</div>`;
-            $('#logs').append(entry);
-            $('#logs').scrollTop($('#logs')[0].scrollHeight);
+        function confirmExit() {
+            triggerModal("Bạn có thực sự muốn thoát trận không?", [
+                { txt: "Thoát", fn: "exitGame()" },
+                { txt: "Ở lại", fn: "closeSystemModal()" }
+            ], "XÁC NHẬN");
         }
 
-        function startGameAI(d) {
-            depthAI = d;
-            initGame('PVE');
+        function exitGame() {
+            db.ref('matchmaking/' + myId).remove();
+            if (window.currentRoom) db.ref('rooms/' + window.currentRoom).remove();
+            location.reload();
         }
 
-        function initGame(m, color = 'w') {
-            mode = m;
-            game.reset();
-            myColor = color; // Quan trọng: Xác định bạn là quân gì
-
-            // Nếu là PVP, xoay bàn cờ nếu là quân Đen
-            let boardConfig = {
-                position: 'start',
-                draggable: false,
-                orientation: (myColor === 'w') ? 'white' : 'black',
-                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
-            };
-
-            board = Chessboard('board', boardConfig);
-
-            transTable = {};
-            turnStartTime = performance.now();
-            switchScreen('game-view-container');
-
-            drawClickGrid();
-            startCountdown();
-            addLog(`HỆ THỐNG: Trận đấu bắt đầu. Bạn cầm quân ${(myColor === 'w' ? 'TRẮNG' : 'ĐEN')}`, 'log-sys');
-            refreshStatus();
-        }
-
-        function startCountdown() {
-            if (timerInt) clearInterval(timerInt);
-            timer = 30;
-            updateTimerUI();
-            timerInt = setInterval(() => {
-                timer--;
-                updateTimerUI();
-                if (timer <= 0) handleAFK();
-            }, 1000);
-        }
-
-        function updateTimerUI() { $('#timer-span').text(timer + "s"); }
-
-        function handleAFK() {
-            const side = game.turn() === 'w' ? 'TRẮNG' : 'ĐEN';
-            addLog(`HẾ THỐNG: [${side}] HẾT GIỜ! TỰ ĐỘNG ĐI QUÂN.`, 'log-warning');
-
-            const moves = game.moves();
-            const randomMove = moves[Math.floor(Math.random() * moves.length)];
-            const moveObj = game.move(randomMove);
-            onAfterMove(moveObj);
+        function addLog(msg, type = 'log-sys') {
+            const now = new Date();
+            const timeStr = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+            $('#logs').append(`<div class="log-entry"><span class="log-time-sync">${timeStr}</span><span class="${type}">${msg}</span></div>`);
+            const $logs = $('#logs');
+            $logs.scrollTop($logs[0].scrollHeight);
         }
 
         function drawClickGrid() {
-            $('#click-overlay').empty();
-            let squares = [];
-            for (let i = 8; i >= 1; i--) {
-                for (let j = 0; j < 8; j++) squares.push(String.fromCharCode(97 + j) + i);
-            }
-            squares.forEach(sq => {
-                $('#click-overlay').append(`<div class="click-cell" id="sq-${sq}" data-sq="${sq}"></div>`);
+            const $overlay = $('#click-overlay').empty();
+            if (!board) return;
+
+            const isWhite = (board.orientation() === 'white');
+            const ranks = isWhite ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8];
+            const files = isWhite ? ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] : ['h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'];
+
+            ranks.forEach(r => {
+                files.forEach(f => {
+                    $overlay.append(`<div class="click-cell" id="sq-${f + r}" data-sq="${f + r}"></div>`);
+                });
             });
         }
 
-        $(document).on('click', '.click-cell', function () {
-            // Chỉ cho phép đi nếu đúng lượt và đúng màu quân của mình
-            if (game.turn() !== myColor) return;
-            const sq = $(this).data('sq');
-            if (selectedSq) {
-                const move = game.move({ from: selectedSq, to: sq, promotion: 'q' });
-                if (move) {
-                    onAfterMove(move);
-                    selectedSq = null;
-                    $('.click-cell').removeClass('border-selected border-hint');
-                } else {
-                    selectedSq = null;
-                    $('.click-cell').removeClass('border-selected border-hint');
-                    trySelect(sq);
-                }
-            } else trySelect(sq);
-        });
+        // === LOGIC GAME CƠ BẢN & MATCHMAKING ===
+        function startGameAI(d) {
+            depthAI = d;
+            switchScreen('game-view-container');
+            setTimeout(() => { initGame('PVE'); }, 200);
+        }
 
-        function trySelect(sq) {
-            const piece = game.get(sq);
-            if (piece && piece.color === game.turn()) {
-                selectedSq = sq;
-                $(`#sq-${sq}`).addClass('border-selected');
+        function requestGame(m) {
+            if (m === 'PVP') {
+                let secondsLeft = 60;
+                triggerModal(`Đang tìm đối thủ... <br><span style="font-size:2em; color:var(--primary-glow);" id="mm-countdown">60</span>`, [{ txt: "Hủy", fn: "closeSystemModal()" }], "GHÉP TRẬN");
 
-                const moves = game.moves({ square: sq, verbose: true });
-                moves.forEach(m => {
-                    $(`#sq-${m.to}`).addClass('border-hint');
+                matchmakingTimer = setInterval(() => {
+                    secondsLeft--;
+                    $('#mm-countdown').text(secondsLeft);
+                    if (secondsLeft <= 0) {
+                        clearInterval(matchmakingTimer);
+                        matchmakingTimer = null;
+                        db.ref('matchmaking/' + myId).remove();
+                        db.ref('rooms/' + myId).remove();
+                        triggerModal("Không có đối thủ nào đang chơi!", [{ txt: "Đóng", fn: "closeSystemModal()" }]);
+                    }
+                }, 1000);
 
-                    game.move(m);
-                    const score = evaluateBoard(game.board());
-                    game.undo();
-                    const scoreStr = score >= 0 ? `+${score}` : `${score}`;
-                    addLog(`... bạn nhìn ${pieceNames[m.piece]} (${m.from}->${m.to}) : ${scoreStr} điểm`, "log-thinking");
+                const lobbyRef = db.ref('matchmaking');
+                const myStatusRef = lobbyRef.child(myId);
+                myStatusRef.set({ id: myId, ts: Date.now() });
+                const hb = setInterval(() => myStatusRef.update({ ts: Date.now() }), 2000);
+                myStatusRef.onDisconnect().remove();
+
+                lobbyRef.once('value', (snap) => {
+                    let found = false;
+                    snap.forEach((child) => {
+                        const peer = child.val();
+                        if (peer.id !== myId && (Date.now() - peer.ts < 10000)) {
+                            found = true;
+                            db.ref('matchmaking/' + peer.id).remove();
+                            db.ref('rooms/' + peer.id).update({
+                                p2: myId,
+                                fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+                                updated: Date.now()
+                            });
+                            clearInterval(hb); clearInterval(matchmakingTimer);
+                            myColor = 'b';
+
+                            // HIỆN THÔNG BÁO CHO NGƯỜI CHƠI 2 (Người vào sau)
+                            triggerModal(
+                                `<div style="text-align:center;">
+                            <span style="color:var(--primary-glow); font-size:1.3em; font-weight:bold;">GHÉP TRẬN THÀNH CÔNG!</span><br>
+                            <p>Đã kết nối với đối thủ. Bạn cầm quân <b>ĐEN</b>.</p>
+                        </div>`,
+                                [{ txt: "BẮT ĐẦU NGAY", fn: `startGamePVP('${peer.id}')` }],
+                                "HỆ THỐNG"
+                            );
+                        }
+                    });
+
+                    if (!found) {
+                        db.ref('rooms/' + myId).set({ p1: myId, fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', created: Date.now() });
+                        db.ref('rooms/' + myId).on('value', s => {
+                            const roomData = s.val();
+                            if (roomData && roomData.p2) {
+                                clearInterval(hb); clearInterval(matchmakingTimer);
+                                db.ref('rooms/' + myId).off();
+                                db.ref('matchmaking/' + myId).remove();
+                                myColor = 'w';
+
+                                // HIỆN THÔNG BÁO CHO NGƯỜI CHƠI 1 (Người chủ phòng)
+                                triggerModal(
+                                    `<div style="text-align:center;">
+                                <span style="color:var(--primary-glow); font-size:1.3em; font-weight:bold;">ĐÃ TÌM THẤY ĐỐI THỦ!</span><br>
+                                <p>Trận đấu đã sẵn sàng. Bạn cầm quân <b>TRẮNG</b>.</p>
+                            </div>`,
+                                    [{ txt: "VÀO TRẬN ĐẤU", fn: `startGamePVP('${myId}')` }],
+                                    "HỆ THỐNG"
+                                );
+                            }
+                        });
+                    }
                 });
             }
         }
 
-        function onAfterMove(move, isSync = false) {
-            $('.click-cell').removeClass('check-square border-selected border-hint');
-            $('img').removeClass('check-blink');
+        function startGamePVP(roomId) {
+            window.currentRoom = roomId;
+            let lastUpdate = 0;
 
-            board.position(game.fen(), true);
+            db.ref('rooms/' + roomId).on('value', snap => {
+                const data = snap.val();
+                if (!data || !data.fen) return;
 
-            if (move) {
-                // ... (giữ nguyên logic addLog và tính điểm)
-
-                // Nếu là mình đi (không phải sync từ đối thủ) thì gửi lên Firebase
-                if (!isSync && mode === 'PVP' && currentGameId) {
-                    database.ref('rooms/' + currentGameId).update({
-                        fen: game.fen(),
-                        lastMove: move,
-                        turn: game.turn()
-                    });
+                // Xử lý khi có tín hiệu kết thúc trận từ server
+                if (data.gameOver && !isPaused) {
+                    triggerModal(data.reason, [{ txt: "Thoát", fn: "exitGame()" }], "KẾT THÚC");
+                    return;
                 }
 
-                updateCheckVisuals();
-            }
+                if (data.updated === lastUpdate) return;
+                lastUpdate = data.updated;
 
-            // Kiểm tra kết thúc game
-            if (game.game_over()) {
-                clearInterval(timerInt);
-                let result = "Hòa!";
-                if (game.in_checkmate()) result = game.turn() === 'w' ? "ĐEN THẮNG!" : "TRẮNG THẮNG!";
-                showModal(result);
-                return;
-            }
+                // Logic dịch ngược FEN từ thử_file.html để bắt chính xác nước đi
+                if (data.fen !== game.fen() && data.fen !== 'start') {
+                    let oldFen = game.fen();
 
-            refreshStatus();
-            startCountdown();
-            turnStartTime = performance.now();
+                    // Tạo bàn cờ ảo để truy vết
+                    let tempGame = new Chess(oldFen);
+                    let moves = tempGame.moves({ verbose: true });
+                    let foundMove = null;
 
-            // Chỉ chạy AI nếu đang ở chế độ PVE và tới lượt máy
-            if (mode === 'PVE' && game.turn() === 'b') {
-                setTimeout(aiMove, 250);
-            }
+                    for (let m of moves) {
+                        tempGame.move(m);
+                        if (tempGame.fen() === data.fen) {
+                            foundMove = m;
+                            break;
+                        }
+                        tempGame.undo();
+                    }
+
+                    // Đồng bộ bàn cờ chính
+                    game.load(data.fen);
+                    board.position(data.fen);
+
+                    // Ghi log chi tiết nếu tìm thấy nước đi
+                    if (foundMove) {
+                        let pName = pieceNames[foundMove.piece];
+                        let color = foundMove.color === 'w' ? "TRẮNG" : "ĐEN";
+
+                        // Tính Eval như người chơi
+                        let currentScore = -evaluatePosition(game);
+                        let scoreStr = (Math.abs(currentScore) > 10000) ? (currentScore < 0 ? "-MATE" : "+MATE") : (currentScore >= 0 ? `+${(currentScore / 100).toFixed(2)}` : `${(currentScore / 100).toFixed(2)}`);
+
+                        let msg = `> ĐỐI THỦ ĐÁNH: ${pName} (${foundMove.from}→${foundMove.to}) | Eval: ${scoreStr}`;
+
+                        if (foundMove.captured) {
+                            msg += ` <span style="color:var(--danger-red);">(Ăn ${pieceNames[foundMove.captured]})</span>`;
+                        }
+
+                        // Phân loại màu log theo phe
+                        addLog(msg, foundMove.color === 'w' ? 'log-white' : 'log-black');
+
+                        // Bắt sự kiện phong cấp
+                        if (foundMove.flags.includes('p')) {
+                            addLog(`⚡ PHONG CẤP: [${color}] Tốt đã phong cấp thành HẬU!`, 'log-warning');
+                        }
+
+                        updateCheckVisuals();
+
+                        // --- UPDATE: Thông báo lượt tiếp theo cho PVP ---
+                        if (!game.game_over()) {
+                            const nextTurnColor = (game.turn() === 'w') ? 'TRẮNG' : 'ĐEN';
+                            const turnName = (game.turn() === myColor) ? 'Người chơi' : 'Đối thủ';
+                            addLog(`👤 Lượt ${turnName} [${nextTurnColor}]`, 'log-sys');
+                        }
+                    }
+
+                    refreshStatus();
+                }
+            });
+
+            switchScreen('game-view-container');
+            setTimeout(() => { initGame('PVP'); }, 200);
         }
 
-        // Lắng nghe nước đi từ đối thủ
-        function syncGameFromFirebase() {
-            database.ref('lobby/' + currentGameId + '/fen').on('value', snapshot => {
-                const fen = snapshot.val();
-                if (fen && fen !== game.fen()) {
-                    game.load(fen);
-                    board.position(fen);
-                    // Cập nhật lượt và timer
-                    startCountdown();
+        function initGame(m) {
+            mode = m;
+            game.reset();
+            isPaused = false;
+            transpositionTable.clear();
+            historyTable.clear();
+            $('#logs').empty(); // Làm sạch khung log
+
+            if (board) board.destroy();
+            board = Chessboard('board', {
+                position: 'start',
+                orientation: myColor === 'w' ? 'white' : 'black',
+                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
+                dragHandlers: false
+            });
+
+            setTimeout(() => {
+                drawClickGrid();
+                refreshStatus();
+                turnStartTime = performance.now();
+
+                addLog(`<b>🚀 HỆ THỐNG: Trận đấu bắt đầu. Thời gian vô hạn.</b>`, 'log-sys');
+
+                // --- UPDATE: Ghi log lượt đầu tiên cho đúng chế độ ---
+                if (mode === 'PVP') {
+                    const firstTurnName = (myColor === 'w') ? 'Người chơi' : 'Đối thủ';
+                    addLog(`👤 Lượt ${firstTurnName} [TRẮNG]`, 'log-sys');
+                } else {
+                    addLog(`👤 Lượt Người chơi [TRẮNG]`, 'log-sys');
                 }
+            }, 200);
+
+            closeSystemModal();
+            if (m === 'PVE' && myColor === 'b') setTimeout(startAiChunking, 50);
+        }
+
+        // Tương tác Bàn cờ CỦA NGƯỜI CHƠI
+        $(document).on('click', '.click-cell', function () {
+            if (aiThinking || isPaused || game.game_over()) return;
+            if (mode === 'PVP' && game.turn() !== myColor) return;
+
+            const sq = $(this).data('sq');
+            const piece = game.get(sq);
+
+            if (selectedSq) {
+                const moves = game.moves({ square: selectedSq, verbose: true });
+                const move = moves.find(m => m.to === sq);
+
+                if (move) {
+                    if (move.flags.includes('p')) {
+                        pendingMove = { from: selectedSq, to: sq };
+                        showPromotionMenu();
+                    } else {
+                        const result = game.move({ from: selectedSq, to: sq, promotion: 'q' });
+                        executeMove(result);
+                    }
+                    clearHighlights();
+                } else {
+                    if (piece && piece.color === game.turn()) {
+                        trySelectSquare(sq);
+                    } else {
+                        clearHighlights();
+                    }
+                }
+            } else {
+                if (piece && piece.color === game.turn()) {
+                    trySelectSquare(sq);
+                }
+            }
+        });
+
+        function trySelectSquare(sq) {
+            clearHighlights();
+            selectedSq = sq;
+            $(`#sq-${sq}`).addClass('border-selected');
+
+            const moves = game.moves({ square: sq, verbose: true });
+            moves.forEach(m => {
+                $(`#sq-${m.to}`).addClass('border-hint');
+
+                game.move(m);
+                // Tính toán điểm số từ góc nhìn của phe đang đi để đồng nhất với lúc executeMove
+                let rawEval = evaluatePosition(game);
+                let score = -rawEval;
+                game.undo();
+
+                const pName = pieceNames[m.piece] || m.piece;
+                const scoreStr = (Math.abs(score) > 10000) ? (score < 0 ? "-MATE" : "+MATE") : (score >= 0 ? `+${(score / 100).toFixed(2)}` : `${(score / 100).toFixed(2)}`);
+
+                let arrowIcon = `<span style="font-family: monospace; color: #a29bfe; margin-right: 6px;"> → </span>`;
+                addLog(`${arrowIcon} Bạn nhìn ${pName} (${m.from}→${m.to}) (Score ${scoreStr} | Nodes: 1 | NPS: 0 | Cutoffs: 0)`, "log-thinking");
             });
         }
 
+        function clearHighlights() {
+            selectedSq = null;
+            $('.click-cell').removeClass('border-selected border-hint');
+        }
+
+        function showPromotionMenu() {
+            isPaused = true; const color = game.turn();
+            $('.promo-option').each(function () {
+                const p = $(this).data('piece');
+                $(this).find('img').attr('src', `https://chessboardjs.com/img/chesspieces/wikipedia/${color}${p.toUpperCase()}.png`);
+            });
+            $('#modal-overlay, #promotion-menu').fadeIn();
+        }
+
+        $(document).on('click', '.promo-option', function () {
+            const piece = $(this).data('piece');
+            if (pendingMove) {
+                const move = game.move({ from: pendingMove.from, to: pendingMove.to, promotion: piece });
+                $('#promotion-menu, #modal-overlay').hide();
+                isPaused = false;
+                if (move) executeMove(move);
+                pendingMove = null; clearHighlights();
+            }
+        });
+
+        function executeMove(move) {
+            if (!move) return;
+            clearHighlights();
+            board.position(game.fen());
+
+            if (mode === 'PVP') {
+                if (!window.currentRoom) return;
+                db.ref('rooms/' + window.currentRoom).update({ fen: game.fen(), lastMove: move, updated: Date.now() });
+            }
+
+            const endTime = performance.now();
+            const timeTaken = ((endTime - turnStartTime) / 1000).toFixed(2);
+            turnStartTime = performance.now();
+
+            const currentScore = -evaluatePosition(game);
+            const sideName = move.color === 'w' ? 'TRẮNG' : 'ĐEN';
+            const pName = pieceNames[move.piece];
+            const cls = move.color === 'w' ? 'log-white' : 'log-black';
+            const scoreStr = (Math.abs(currentScore) > 10000) ? (currentScore < 0 ? "-MATE" : "+MATE") : (currentScore >= 0 ? `+${(currentScore / 100).toFixed(2)}` : `${(currentScore / 100).toFixed(2)}`);
+
+            // --- CẬP NHẬT: Thêm chuỗi hiển thị quân bị ăn, bỏ phần tính thời gian ---
+            let captureStr = "";
+            if (move.captured) {
+                captureStr = ` <span style="color:var(--danger-red);">(Ăn ${pieceNames[move.captured]})</span>`;
+            }
+
+            if (move.flags.includes('p')) {
+                const promotedPieceName = pieceNames[move.promotion].toUpperCase();
+                addLog(`⚡ PHONG CẤP: [${sideName}] Tốt đã phong cấp thành ${promotedPieceName}!`, 'log-warning');
+            }
+
+            if (move.color === myColor) {
+                addLog(`> BẠN ĐÃ ĐÁNH: ${pName} (${move.from}→${move.to}) | Eval: ${scoreStr}${captureStr}`, cls);
+            } else if (mode === 'PVP') {
+                addLog(`> ĐỐI THỦ ĐÁNH: ${pName} (${move.from}→${move.to}) | Eval: ${scoreStr}${captureStr}`, cls);
+            }
+
+            updateCheckVisuals();
+            refreshStatus();
+
+            if (!game.game_over()) {
+                if (mode === 'PVE' && game.turn() !== myColor) {
+                    setTimeout(startAiChunking, 50);
+                } else if (mode === 'PVP') {
+                    // --- UPDATE: Tự động tính lượt tiếp theo là ai ---
+                    const nextTurnColor = (game.turn() === 'w') ? 'TRẮNG' : 'ĐEN';
+                    const turnName = (game.turn() === myColor) ? 'Người chơi' : 'Đối thủ';
+                    addLog(`👤 Lượt ${turnName} [${nextTurnColor}]`, 'log-sys');
+                } else {
+                    const nextTurnColor = (game.turn() === 'w') ? 'TRẮNG' : 'ĐEN';
+                    addLog(`👤 Lượt Người chơi [${nextTurnColor}]`, 'log-sys');
+                }
+            }
+        }
+
         function updateCheckVisuals() {
+            $('.click-cell').removeClass('check-square');
+            $('img').removeClass('check-blink');
             if (game.in_check()) {
                 const target = game.turn() === 'w' ? 'TRẮNG' : 'ĐEN';
                 addLog(`⚠️ CẢNH BÁO: BÊN [${target}] ĐANG BỊ CHIẾU!`, 'log-warning');
 
-                const turnColor = game.turn();
-                let kingPos = '';
-                const boardArray = game.board();
-                for (let i = 0; i < 8; i++) {
-                    for (let j = 0; j < 8; j++) {
-                        const p = boardArray[i][j];
-                        if (p && p.type === 'k' && p.color === turnColor) {
-                            kingPos = String.fromCharCode(97 + j) + (8 - i);
-                            break;
-                        }
-                    }
-                }
-
-                if (kingPos) {
-                    $(`#sq-${kingPos}`).addClass('check-square');
-                    // Đảm bảo chessboard.js đã render xong ảnh quân cờ rồi mới thêm class
+                const color = game.turn(); let kingSq = "";
+                game.board().forEach((row, r) => {
+                    row.forEach((p, c) => {
+                        if (p && p.type === 'k' && p.color === color) kingSq = String.fromCharCode(97 + c) + (8 - r);
+                    });
+                });
+                if (kingSq) {
+                    $(`#sq-${kingSq}`).addClass('check-square');
                     setTimeout(() => {
-                        $(`.square-${kingPos} img`).addClass('check-blink');
+                        $(`.square-${kingSq} img`).addClass('check-blink');
                     }, 50);
                 }
             }
@@ -792,59 +1006,219 @@
 
         function refreshStatus() {
             const turn = game.turn() === 'w' ? 'TRẮNG' : 'ĐEN';
-            $('#turn-display').text(`LƯỢT: ${turn}`);
+            $('#turn-display').text(`LƯỢT: ${turn}`).css('color', turn === 'TRẮNG' ? '#fff' : '#a29bfe');
+
+            if (game.game_over()) {
+                let msg = game.in_checkmate() ? `CHIẾU BÍ! QUÂN ${game.turn() === 'w' ? "ĐEN" : "TRẮNG"} THẮNG.` : "HÒA CỜ!";
+                if (mode === 'PVP' && window.currentRoom) db.ref('rooms/' + window.currentRoom).update({ gameOver: true, reason: msg, updated: Date.now() });
+                addLog(`🏆 KẾT THÚC: ${msg}`, 'log-warning');
+                triggerModal(msg, [{ txt: "Chơi Ván Mới", fn: "exitGame()" }], "VÁN ĐẤU KẾT THÚC");
+            }
         }
 
-        // --- AI LOGIC ---
-        function aiMove() {
-            if (game.game_over()) return;
+        // === BỘ NÃO AI ĐƯỢC CHUẨN HÓA LẠI TƯƠNG THÍCH NEGAMAX ===
+        function evaluatePosition(g) {
+            // Trong Negamax, nếu bên đang xét bị chiếu bí, thì điểm số là Âm vô cực (Thua cờ)
+            if (g.in_checkmate()) return -Infinity;
+            if (g.in_draw()) return 0;
 
+            let score = 0;
+            const b = g.board();
 
-            addLog("HỆ THỐNG: Máy đang tính toán...", "log-sys");
-            aiworker.postMessage({
-                fen: game.fen(),
-                depth: depthAI
-            });
-        }
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const piece = b[r][c];
+                    if (!piece) continue;
 
-        function evaluateBoard(board) {
-            let total = 0;
-            const values = { p: 10, n: 30, b: 30, r: 50, q: 90, k: 900 };
-            for (let i = 0; i < 8; i++) {
-                for (let j = 0; j < 8; j++) {
-                    const piece = board[i][j];
-                    if (piece) {
-                        let val = values[piece.type];
-                        const pstTable = pieceSquareTables[piece.type];
-                        val += (piece.color === 'w' ? pstTable[i][j] : pstTable[7 - i][j]);
-                        total += piece.color === 'w' ? val : -val;
+                    let val = VALUES[piece.type];
+                    let pstVal = 0;
+
+                    if (PSTs[piece.type]) {
+                        let pstIndex = r * 8 + c;
+                        if (piece.color === 'b') pstIndex = (7 - r) * 8 + c;
+                        pstVal = PSTs[piece.type][pstIndex];
                     }
+
+                    if (piece.color === 'w') score += (val + pstVal);
+                    else score -= (val + pstVal);
                 }
             }
-            return total;
+            // Logic Fix Negamax: Điểm trả về phải đứng ở góc nhìn của phe ĐANG LÀM LƯỢT ĐI.
+            return g.turn() === 'w' ? score : -score;
         }
 
-        function getPieceValue(piece, x, y) {
-            if (!piece) return 0;
-            const values = { p: 10, n: 30, b: 30, r: 50, q: 90, k: 900 };
-            let val = values[piece.type];
-            const pst = pieceSquareTables[piece.type];
-            val += (piece.color === 'w' ? pst[x][y] : pst[7 - x][y]) || 0;
-            return piece.color === 'w' ? val : -val;
-        }
-        aiworker.onmessage = function (e) {
-            const result = e.data;
-            if (result && result.move) {
-                const move = game.move(result.move);
-                onAfterMove(move);
-            } else {
-                handleAFK();
+        function getMoveScore(g, move, depth) {
+            let score = 0;
+            if (move.captured) {
+                score = (10 * VALUES[move.captured]) - VALUES[move.piece];
             }
-        };
-        // Ngăn chặn việc kéo trang (scroll) khi đang chạm vào bàn cờ trên điện thoại
-        document.getElementById('click-overlay').addEventListener('touchmove', function (e) {
-            e.preventDefault();
-        }, { passive: false });
+            if (killerMoves[depth] && (killerMoves[depth][1] === move.san || killerMoves[depth][2] === move.san)) {
+                score += 1000;
+            }
+            const histKey = move.from + move.to;
+            if (historyTable.has(histKey)) score += historyTable.get(histKey);
+            if (move.flags.includes('p')) score += 900;
+            return score;
+        }
+
+        function orderMoves(g, moves, depth) {
+            return moves.map(m => ({ move: m, score: getMoveScore(g, m, depth) }))
+                .sort((a, b) => b.score - a.score)
+                .map(x => x.move);
+        }
+
+        function quiesce(g, alpha, beta, depth) {
+            window.aiNodes = (window.aiNodes || 0) + 1;
+            let stand_pat = evaluatePosition(g);
+            if (stand_pat >= beta) {
+                window.aiCutoffs = (window.aiCutoffs || 0) + 1;
+                return beta;
+            }
+            if (alpha < stand_pat) alpha = stand_pat;
+            if (depth > 4) return stand_pat;
+
+            let moves = orderMoves(g, g.moves({ verbose: true }).filter(m => m.captured), 0);
+            for (let move of moves) {
+                g.move(move);
+                let score = -quiesce(g, -beta, -alpha, depth + 1);
+                g.undo();
+                if (score >= beta) {
+                    window.aiCutoffs = (window.aiCutoffs || 0) + 1;
+                    return beta;
+                }
+                if (score > alpha) alpha = score;
+            }
+            return alpha;
+        }
+
+        function getHash(g) { return g.fen(); }
+
+        async function startAiChunking() {
+            if (aiThinking || isPaused || game.game_over()) return;
+            aiThinking = true;
+
+            const aiName = (myColor === 'w') ? 'ĐEN' : 'TRẮNG';
+            // Đổi tiêu đề thông báo ngắn gọn hơn
+            addLog(`🤖 Lượt Máy [${aiName}]: Depth=${depthAI}`, "log-sys");
+
+            let currentThinkID = aiThinkID;
+            window.aiNodes = 0;
+            window.aiCutoffs = 0;
+
+            try {
+                let moves = orderMoves(game, game.moves({ verbose: true }), depthAI);
+                let bestMove = moves[0];
+                let finalEval = 0;
+
+                for (let d = 1; d <= depthAI; d++) {
+                    if (isPaused || currentThinkID !== aiThinkID) break;
+
+                    let startNodes = window.aiNodes;
+                    let startCutoffs = window.aiCutoffs;
+                    let depthStart = performance.now();
+                    let bestScoreThisDepth = -Infinity;
+                    let bestMoveThisDepth = moves[0];
+
+                    const result = await new Promise(resolve => {
+                        let i = 0;
+                        function process() {
+                            if (isPaused || currentThinkID !== aiThinkID) { resolve(null); return; }
+                            const start = performance.now();
+                            while (i < moves.length && performance.now() - start < 50) {
+                                let move = moves[i];
+                                game.move(move);
+                                let score = -minimax(game, d - 1, -Infinity, Infinity);
+                                game.undo();
+                                if (score > bestScoreThisDepth) {
+                                    bestScoreThisDepth = score;
+                                    bestMoveThisDepth = move;
+                                }
+                                i++;
+                            }
+                            if (i < moves.length) setTimeout(process, 10);
+                            else resolve(bestMoveThisDepth);
+                        }
+                        process();
+                    });
+
+                    if (!result) break;
+                    bestMove = result;
+                    finalEval = bestScoreThisDepth;
+
+                    let depthNodes = window.aiNodes - startNodes;
+                    let depthCutoffs = window.aiCutoffs - startCutoffs;
+                    let depthTime = (performance.now() - depthStart) / 1000;
+                    let nps = Math.round(depthNodes / (depthTime || 0.001));
+                    let displayScore = (Math.abs(bestScoreThisDepth) > 10000) ? (bestScoreThisDepth < 0 ? "-MATE" : "+MATE") : (bestScoreThisDepth / 100).toFixed(2);
+
+                    let arrowIcon = `<span style="font-family: monospace; color: #a29bfe; margin-right: 6px;"> → </span>`;
+                    let pNameD = pieceNames[bestMove.piece] || bestMove.piece;
+                    addLog(`${arrowIcon} Depth ${d}: ${pNameD} (${bestMove.from}→${bestMove.to}) (Score ${displayScore} | Nodes: ${depthNodes} | NPS: ${nps}/s | Cutoffs: ${depthCutoffs})`, "log-thinking");
+
+                    moves.sort((a, b) => (a === bestMove) ? -1 : (b === bestMove) ? 1 : 0);
+                }
+
+                aiThinking = false;
+                if (!isPaused && currentThinkID === aiThinkID) {
+                    let finalScoreStr = (Math.abs(finalEval) > 10000) ? (finalEval < 0 ? "-MATE" : "+MATE") : (finalEval / 100).toFixed(2);
+                    let arrowIcon = `<span style="font-family: monospace; color: #a29bfe; margin-right: 6px;"> → </span>`;
+
+                    // Lấy tên quân cờ và format đúng chuẩn cho dòng MÁY ĐÃ ĐÁNH
+                    let pNameM = pieceNames[bestMove.piece] || bestMove.piece;
+
+                    // --- CẬP NHẬT: Thêm hiển thị quân bị ăn cho AI ---
+                    let captureStrAI = "";
+                    if (bestMove.captured) {
+                        captureStrAI = ` <span style="color:var(--danger-red);">(Ăn ${pieceNames[bestMove.captured]})</span>`;
+                    }
+
+                    addLog(`${arrowIcon}<span style="color: #00d2d3; font-weight: bold;"> MÁY ĐÃ ĐÁNH: ${pNameM} (${bestMove.from}→${bestMove.to}) | Eval: ${finalScoreStr}${captureStrAI}</span>`, "");
+                    addLog(`${arrowIcon}<span style="color: #ff9f43; font-weight: bold;"> Thống kê: Nodes: ${window.aiNodes} | Cutoffs: ${window.aiCutoffs} | TT: ${transpositionTable.size}</span>`, "");
+
+                    const finalMove = game.move(bestMove);
+                    executeMove(finalMove);
+                }
+            } catch (e) {
+                console.error(e);
+                aiThinking = false;
+            }
+        }
+
+        function minimax(g, depth, alpha, beta) {
+            window.aiNodes = (window.aiNodes || 0) + 1;
+            if (isPaused) return 0;
+            const hash = getHash(g);
+            if (transpositionTable.has(hash)) {
+                let entry = transpositionTable.get(hash);
+                if (entry.depth >= depth) return entry.score;
+            }
+
+            if (depth === 0) return quiesce(g, alpha, beta, 0);
+
+            let moves = orderMoves(g, g.moves({ verbose: true }), depth);
+            if (moves.length === 0) {
+                return g.in_check() ? -Infinity : 0;
+            }
+
+            let bestScore = -Infinity;
+            for (let move of moves) {
+                g.move(move);
+                let score = -minimax(g, depth - 1, -beta, -alpha);
+                g.undo();
+
+                if (score > bestScore) bestScore = score;
+                if (score > alpha) alpha = score;
+                if (alpha >= beta) {
+                    window.aiCutoffs = (window.aiCutoffs || 0) + 1;
+                    const histKey = move.from + move.to;
+                    historyTable.set(histKey, (historyTable.get(histKey) || 0) + depth * depth);
+                    break;
+                }
+            }
+            transpositionTable.set(hash, { depth: depth, score: bestScore });
+            return bestScore;
+
+        }
     </script>
 </body>
 </html>
